@@ -1,140 +1,95 @@
 
-import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
+
+
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, ActivityIndicator, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Sparkles } from 'lucide-react-native';
 import { colors, spacing, typography } from '@/constants/design';
-import { mockAuth, mockDb, mockStorage, mockAi } from '@/lib/auth';
-import type { AnalysisResult } from '@/types';
+import { scanAPI } from '@/lib/api/scan';
 
 export default function AnalyzingScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams();
+  const params = useLocalSearchParams<{
+    imageUri?: string;
+    ingredients?: string;
+    foodName?: string;
+  }>();
   const [status, setStatus] = useState('Processing...');
 
   useEffect(() => {
-    analyzeFood();
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+    const timer = setTimeout(() => analyzeFood(), 500);
+    return () => clearTimeout(timer);
+  }, []);
 
   const analyzeFood = async () => {
     try {
-      // Get user's health profile
-      const user = await mockAuth.me();
-      const profiles = await mockDb.healthProfiles.list({
-        where: { userId: user.id },
-        limit: 1,
-      });
+      let result = null;
 
-      if (profiles.length === 0) {
-        throw new Error('Health profile not found');
-      }
-
-      const profile = profiles[0];
-      const allergies = JSON.parse(profile.allergies || '[]');
-      const complications = JSON.parse(profile.healthComplications || '[]');
-      const pastReactions = JSON.parse(profile.pastReactions || '[]');
-
-      let ingredientsText = '';
-
-      // Extract ingredients from image or use manual input
       if (params.imageUri) {
-        setStatus('Scanning image...');
-        // Upload image to storage first
-        const response = await fetch(params.imageUri as string);
-        const blob = await response.blob();
-        const file = new File([blob], 'ingredient-label.jpg', { type: 'image/jpeg' });
+        // Analyze with image
+        setStatus('Uploading and analyzing image...');
+        console.log('📤 Analyzing with image:', params.imageUri);
         
-        const upload = await mockStorage.upload(
-          file,
-          `scans/${Date.now()}.jpg`
-        );
-
-        setStatus('Reading ingredients...');
-        // Use AI to extract text from image
-        const extraction = await mockAi.generateText({
-          messages: [
-            {
-              role: 'user',
-              content: [
-                { type: 'text', text: 'Extract and list all ingredients from this food label image. Only list the ingredients, nothing else.' },
-                { type: 'image', image: upload.publicUrl }
-              ]
-            }
-          ]
+        result = await scanAPI.scanWithImage({ 
+          image: params.imageUri,
+           foodName: params.foodName || 'Unknown Food'
         });
+      } else if (params.ingredients) {
+        // Analyze with text
+        setStatus('Analyzing ingredients...');
+        console.log('📤 Analyzing with text:', params.ingredients);
         
-        ingredientsText = extraction.text;
+        result = await scanAPI.scanWithText({
+          ingredients: params.ingredients,
+          foodName: params.foodName || 'Unknown Food'
+        });
       } else {
-        ingredientsText = params.ingredients as string;
+        throw new Error('No image or ingredients provided');
       }
 
-      setStatus('Analyzing ingredients...');
+      if (!result) {
+        throw new Error('Analysis failed - no result returned');
+      }
 
-      // Use AI to analyze ingredients against health profile
-      const prompt = `You are a food safety expert. Analyze these ingredients for potential allergens and health risks.
-
-User's Health Profile:
-- Allergies: ${allergies.join(', ') || 'None'}
-- Health Complications: ${complications.join(', ') || 'None'}
-- Past Reactions: ${pastReactions.join(', ') || 'None'}
-
-Ingredients: ${ingredientsText}
-
-Provide a detailed safety analysis. If any concerning ingredients are found, list them specifically.`;
-
-      const { object } = await mockAi.generateObject({
-        prompt,
-        schema: {
-          type: 'object',
-          properties: {
-            isSafe: { type: 'boolean' },
-            warningIngredients: {
-              type: 'array',
-              items: { type: 'string' }
-            },
-            alternatives: {
-              type: 'array',
-              items: { type: 'string' }
-            },
-            analysis: { type: 'string' }
-          },
-          required: ['isSafe', 'warningIngredients', 'analysis']
-        }
-      });
-
-      const result = object as AnalysisResult;
-
-      // Save to database
-      const checkId = `check_${Date.now()}`;
-      await mockDb.foodChecks.create({
-        id: checkId,
-        userId: user.id,
-        foodName: params.foodName as string,
-        ingredients: ingredientsText,
-        isSafe: result.isSafe ? '1' : '0',
-        warningIngredients: JSON.stringify(result.warningIngredients),
-        alternatives: JSON.stringify(result.alternatives || []),
-        checkedAt: new Date().toISOString(),
-        imageUrl: params.imageUri ? params.imageUri as string : undefined,
-      });
+      console.log('✅ Analysis complete:', result);
 
       // Navigate to result screen
       router.replace({
         pathname: '/(scan)/result',
         params: {
-          checkId,
+          foodName: result.foodName || 'Unknown Food',
           isSafe: result.isSafe ? '1' : '0',
-          warningIngredients: JSON.stringify(result.warningIngredients),
-          alternatives: JSON.stringify(result.alternatives || []),
-          analysis: result.analysis,
-          foodName: params.foodName,
-        }
+          riskLevel: result.riskLevel || 'unknown',
+          warningIngredients: JSON.stringify(result.warnings || []),
+          analysis: result.explanation || 'Analysis complete.',
+          imageUri: params.imageUri || '',
+          ingredients: result.ingredients || params.ingredients || ''
+        },
       });
-
-    } catch (error) {
-      console.error('Analysis failed:', error);
+    } catch (error: any) {
+      console.error('❌ Analysis error:', error);
+      console.error('Error details:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status
+      });
+      
       setStatus('Analysis failed. Please try again.');
+      
+      const errorMessage = error?.response?.data?.error 
+        || error?.response?.data?.message 
+        || error.message 
+        || 'Failed to analyze ingredients';
+      
+      Alert.alert(
+        'Analysis Failed', 
+        errorMessage,
+        [
+          { text: 'OK', onPress: () => router.back() }
+        ]
+      );
     }
   };
 
@@ -198,5 +153,6 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     textAlign: 'center',
     lineHeight: 24,
+    paddingHorizontal: spacing.lg,
   },
 });

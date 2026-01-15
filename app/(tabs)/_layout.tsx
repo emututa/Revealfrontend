@@ -38,11 +38,14 @@
 
 
 import { Tabs } from 'expo-router';
-import { Home, History, User } from 'lucide-react-native';
+import { Home,User,History } from 'lucide-react-native';
 import { colors } from '@/constants/design';
+import { SafeAreaView } from 'react-native-safe-area-context';
+
 
 export default function TabLayout() {
   return (
+    // <SafeAreaView>
     <Tabs
       screenOptions={{
         tabBarActiveTintColor: colors.primary,
@@ -79,5 +82,6 @@ export default function TabLayout() {
         }}
       />
     </Tabs>
+    // </SafeAreaView>
   );
 }

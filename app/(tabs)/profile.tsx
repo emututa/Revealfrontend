@@ -1,19 +1,35 @@
 
+
+
+
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { Heart, AlertCircle, FileText, LogOut } from 'lucide-react-native';
+import { Heart, AlertCircle, FileText, LogOut, Edit } from 'lucide-react-native';
 import Button from '@/components/ui/Button';
 import { colors, spacing, typography, borderRadius, shadows } from '@/constants/design';
-import { mockAuth, mockDb } from '@/lib/auth';
-import type { HealthProfile } from '@/types';
+import { userAPI } from '@/lib/api/user';
+import { authAPI } from '@/lib/api/auth';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+interface UserProfile {
+  id: number;
+  name: string;
+  email: string;
+  healthConditions: string[];
+  allergicFoods: string[];
+  foodReactions: Array<{
+    food: string;
+    notes: string;
+  }>;
+}
 
 export default function ProfileScreen() {
   const router = useRouter();
-  const [user, setUser] = useState<any>(null);
-  const [profile, setProfile] = useState<HealthProfile | null>(null);
+  const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     loadProfile();
@@ -21,19 +37,21 @@ export default function ProfileScreen() {
 
   const loadProfile = async () => {
     try {
-      const currentUser = await mockAuth.me();
-      setUser(currentUser);
-
-      const profiles = await mockDb.healthProfiles.list({
-        where: { userId: currentUser.id },
-        limit: 1,
-      });
-
-      if (profiles.length > 0) {
-        setProfile(profiles[0]);
+      setLoading(true);
+      setError(null);
+      
+      // Fetch profile from backend
+      const profileData = await userAPI.getProfile();
+      setProfile(profileData);
+    } catch (err: any) {
+      console.error('Failed to load profile:', err);
+      setError(err.response?.data?.error || 'Failed to load profile');
+      
+      // If unauthorized, redirect to login
+      if (err.response?.status === 401) {
+        await AsyncStorage.removeItem('token');
+        router.replace('/(auth)/welcome');
       }
-    } catch (error) {
-      console.error('Failed to load profile:', error);
     } finally {
       setLoading(false);
     }
@@ -49,12 +67,25 @@ export default function ProfileScreen() {
           text: 'Logout',
           style: 'destructive',
           onPress: async () => {
-            await mockAuth.logout();
-            router.replace('/(auth)/welcome');
+            try {
+              await authAPI.logout();
+              await AsyncStorage.removeItem('token');
+              router.replace('/(auth)/welcome');
+            } catch (error) {
+              console.error('Logout error:', error);
+              // Still clear local storage and redirect even if API call fails
+              await AsyncStorage.removeItem('token');
+              router.replace('/(auth)/welcome');
+            }
           }
         }
       ]
     );
+  };
+
+  const handleEditProfile = () => {
+    // Navigate to edit profile screen
+    router.push('/(app)/edit-profile');
   };
 
   if (loading) {
@@ -67,9 +98,31 @@ export default function ProfileScreen() {
     );
   }
 
-  const allergies = profile ? JSON.parse(profile.allergies || '[]') : [];
-  const complications = profile ? JSON.parse(profile.healthComplications || '[]') : [];
-  const pastReactions = profile ? JSON.parse(profile.pastReactions || '[]') : [];
+  if (error) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.errorContainer}>
+          <AlertCircle size={48} color={colors.error} />
+          <Text style={styles.errorText}>{error}</Text>
+          <Button onPress={loadProfile} variant="primary" size="large">
+            Retry
+          </Button>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (!profile) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.errorContainer}>
+          <Text style={styles.errorText}>No profile data available</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  const { healthConditions, allergicFoods, foodReactions } = profile;
 
   return (
     <SafeAreaView style={styles.container}>
@@ -77,72 +130,85 @@ export default function ProfileScreen() {
         <View style={styles.header}>
           <View style={styles.avatarContainer}>
             <Text style={styles.avatarText}>
-              {user?.displayName?.charAt(0).toUpperCase() || 'U'}
+              {profile.name?.charAt(0).toUpperCase() || 'U'}
             </Text>
           </View>
-          <Text style={styles.userName}>{user?.displayName || 'User'}</Text>
-          <Text style={styles.userEmail}>{user?.email}</Text>
+          <Text style={styles.userName}>{profile.name || 'User'}</Text>
+          <Text style={styles.userEmail}>{profile.email}</Text>
+          
+          <TouchableOpacity 
+            style={styles.editButton} 
+            onPress={handleEditProfile}
+          >
+            <Edit size={16} color={colors.primary} />
+            <Text style={styles.editButtonText}>Edit Profile</Text>
+          </TouchableOpacity>
         </View>
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Health Profile</Text>
 
+          {/* Allergic Foods */}
           <View style={styles.infoCard}>
             <View style={styles.infoHeader}>
               <Heart size={20} color={colors.primary} />
-              <Text style={styles.infoTitle}>Allergies ({allergies.length})</Text>
+              <Text style={styles.infoTitle}>
+                Allergic Foods ({allergicFoods.length})
+              </Text>
             </View>
-            {allergies.length > 0 ? (
+            {allergicFoods.length > 0 ? (
               <View style={styles.tagsList}>
-                {allergies.map((allergy: string, index: number) => (
+                {allergicFoods.map((food, index) => (
                   <View key={index} style={styles.tag}>
-                    <Text style={styles.tagText}>{allergy}</Text>
+                    <Text style={styles.tagText}>{food}</Text>
                   </View>
                 ))}
               </View>
             ) : (
-              <Text style={styles.emptyText}>No allergies listed</Text>
+              <Text style={styles.emptyText}>No food allergies listed</Text>
             )}
           </View>
 
+          {/* Health Conditions */}
           <View style={styles.infoCard}>
             <View style={styles.infoHeader}>
               <AlertCircle size={20} color={colors.primary} />
-              <Text style={styles.infoTitle}>Health Conditions ({complications.length})</Text>
+              <Text style={styles.infoTitle}>
+                Health Conditions ({healthConditions.length})
+              </Text>
             </View>
-            {complications.length > 0 ? (
+            {healthConditions.length > 0 ? (
               <View style={styles.tagsList}>
-                {complications.map((condition: string, index: number) => (
+                {healthConditions.map((condition, index) => (
                   <View key={index} style={styles.tag}>
                     <Text style={styles.tagText}>{condition}</Text>
                   </View>
                 ))}
               </View>
             ) : (
-              <Text style={styles.emptyText}>No conditions listed</Text>
+              <Text style={styles.emptyText}>No health conditions listed</Text>
             )}
           </View>
 
-          {pastReactions.length > 0 && (
+          {/* Past Food Reactions */}
+          {foodReactions.length > 0 && (
             <View style={styles.infoCard}>
               <View style={styles.infoHeader}>
                 <FileText size={20} color={colors.primary} />
-                <Text style={styles.infoTitle}>Past Reactions ({pastReactions.length})</Text>
+                <Text style={styles.infoTitle}>
+                  Past Food Reactions ({foodReactions.length})
+                </Text>
               </View>
-              <View style={styles.tagsList}>
-                {pastReactions.map((reaction: string, index: number) => (
-                  <View key={index} style={styles.tag}>
-                    <Text style={styles.tagText}>{reaction}</Text>
+              <View style={styles.reactionsList}>
+                {foodReactions.map((reaction, index) => (
+                  <View key={index} style={styles.reactionItem}>
+                    <Text style={styles.reactionFood}>{reaction.food}</Text>
+                    {reaction.notes && (
+                      <Text style={styles.reactionNotes}>{reaction.notes}</Text>
+                    )}
                   </View>
                 ))}
               </View>
-            </View>
-          )}
-
-          {profile?.medicalNotes && (
-            <View style={styles.notesCard}>
-              <Text style={styles.notesTitle}>Medical Notes</Text>
-              <Text style={styles.notesText}>{profile.medicalNotes}</Text>
             </View>
           )}
         </View>
@@ -155,7 +221,7 @@ export default function ProfileScreen() {
             style={styles.logoutButton}
           >
             <LogOut size={20} color={colors.error} />
-            Logout
+            <Text style={styles.logoutButtonText}>Logout</Text>
           </Button>
         </View>
 
@@ -181,6 +247,18 @@ const styles = StyleSheet.create({
   loadingText: {
     ...typography.body,
     color: colors.textSecondary,
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: spacing.xl,
+    gap: spacing.lg,
+  },
+  errorText: {
+    ...typography.body,
+    color: colors.error,
+    textAlign: 'center',
   },
   scrollContent: {
     paddingHorizontal: spacing.xl,
@@ -214,6 +292,21 @@ const styles = StyleSheet.create({
   userEmail: {
     ...typography.body,
     color: colors.textSecondary,
+    marginBottom: spacing.md,
+  },
+  editButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    borderRadius: borderRadius.md,
+    backgroundColor: colors.backgroundSecondary,
+  },
+  editButtonText: {
+    ...typography.body,
+    color: colors.primary,
+    fontWeight: '600',
   },
   section: {
     gap: spacing.md,
@@ -261,21 +354,28 @@ const styles = StyleSheet.create({
   emptyText: {
     ...typography.body,
     color: colors.textLight,
+    fontStyle: 'italic',
   },
-  notesCard: {
+  reactionsList: {
+    gap: spacing.md,
+  },
+  reactionItem: {
     backgroundColor: colors.backgroundSecondary,
-    padding: spacing.lg,
-    borderRadius: borderRadius.lg,
+    padding: spacing.md,
+    borderRadius: borderRadius.md,
+    borderLeftWidth: 3,
+    borderLeftColor: colors.warning,
   },
-  notesTitle: {
-    ...typography.h4,
-    color: colors.text,
-    marginBottom: spacing.sm,
-  },
-  notesText: {
+  reactionFood: {
     ...typography.body,
+    color: colors.text,
+    fontWeight: '600',
+    marginBottom: spacing.xs,
+  },
+  reactionNotes: {
+    ...typography.small,
     color: colors.textSecondary,
-    lineHeight: 22,
+    lineHeight: 18,
   },
   actions: {
     gap: spacing.md,
@@ -285,6 +385,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: spacing.sm,
     alignItems: 'center',
+    justifyContent: 'center',
+  },
+  logoutButtonText: {
+    color: colors.error,
+    ...typography.body,
+    fontWeight: '600',
   },
   footer: {
     alignItems: 'center',
@@ -301,3 +407,4 @@ const styles = StyleSheet.create({
     marginTop: spacing.xs,
   },
 });
+

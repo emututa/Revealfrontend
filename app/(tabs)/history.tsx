@@ -1,17 +1,28 @@
 
 
+
+
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Clock, AlertTriangle, CheckCircle2 } from 'lucide-react-native';
 import { colors, spacing, typography, borderRadius, shadows } from '@/constants/design';
-import { mockAuth, mockDb } from '@/lib/auth';
-import type { FoodCheck } from '@/types';
+import { scanAPI } from '@/lib/api/scan';
+
+// Backend returns this structure from getScanHistory
+interface HistoryScan {
+  id: number;
+  foodName: string;
+  isSafe: boolean;
+  warnings: string; // comma-separated string from backend
+  scannedAt: string; 
+}
 
 export default function HistoryScreen() {
-  const [checks, setChecks] = useState<FoodCheck[]>([]);
+  const [scans, setScans] = useState<HistoryScan[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     loadHistory();
@@ -19,15 +30,24 @@ export default function HistoryScreen() {
 
   const loadHistory = async () => {
     try {
-      const user = await mockAuth.me();
-      const allChecks = await mockDb.foodChecks.list({
-        where: { userId: user.id },
-        orderBy: { checkedAt: 'desc' },
-        limit: 100,
+      setError(null);
+      const historyData = await scanAPI.getHistory();
+      
+      // Backend already returns data in the correct format
+      // Just ensure it's an array
+      const dataArray = Array.isArray(historyData) ? historyData : [];
+      
+      // Sort by most recent first (backend uses 'scannedAt')
+      const sortedScans = dataArray.sort((a: any, b: any) => {
+        const dateA = new Date(a.scannedAt || a.createdAt || Date.now()).getTime();
+        const dateB = new Date(b.scannedAt || b.createdAt || Date.now()).getTime();
+        return dateB - dateA;
       });
-      setChecks(allChecks);
-    } catch (error) {
-      console.error('Failed to load history:', error);
+      
+      setScans(sortedScans);
+    } catch (err) {
+      console.error('Failed to load history:', err);
+      setError('Failed to load scan history. Pull to refresh to try again.');
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -39,11 +59,13 @@ export default function HistoryScreen() {
     loadHistory();
   };
 
-  const groupByDate = (checks: FoodCheck[]) => {
-    const groups: Record<string, FoodCheck[]> = {};
+  const groupByDate = (scans: HistoryScan[]) => {
+    const groups: Record<string, HistoryScan[]> = {};
     
-    checks.forEach(check => {
-      const date = new Date(check.checkedAt).toLocaleDateString('en-US', {
+    scans.forEach(scan => {
+      // Use scannedAt from backend
+      const timestamp = scan.scannedAt || Date.now();
+      const date = new Date(timestamp).toLocaleDateString('en-US', {
         year: 'numeric',
         month: 'long',
         day: 'numeric'
@@ -52,7 +74,7 @@ export default function HistoryScreen() {
       if (!groups[date]) {
         groups[date] = [];
       }
-      groups[date].push(check);
+      groups[date].push(scan);
     });
 
     return groups;
@@ -62,19 +84,22 @@ export default function HistoryScreen() {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.loadingContainer}>
-          <Text style={styles.loadingText}>Loading history...</Text>
+          <Clock size={48} color={colors.primary} strokeWidth={2} />
+          <Text style={styles.loadingText}>Loading your scan history...</Text>
         </View>
       </SafeAreaView>
     );
   }
 
-  const groupedChecks = groupByDate(checks);
+  const groupedScans = groupByDate(scans);
 
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>Food History</Text>
-        <Text style={styles.subtitle}>Your complete food safety log</Text>
+        <Text style={styles.title}>Scan History</Text>
+        <Text style={styles.subtitle}>
+          {scans.length} {scans.length === 1 ? 'scan' : 'scans'} recorded
+        </Text>
       </View>
 
       <ScrollView
@@ -83,24 +108,32 @@ export default function HistoryScreen() {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
         }
       >
-        {checks.length === 0 ? (
+        {error ? (
+          <View style={styles.errorState}>
+            <AlertTriangle size={64} color={colors.warning} strokeWidth={1.5} />
+            <Text style={styles.errorText}>{error}</Text>
+            <TouchableOpacity style={styles.retryButton} onPress={loadHistory}>
+              <Text style={styles.retryButtonText}>Retry</Text>
+            </TouchableOpacity>
+          </View>
+        ) : scans.length === 0 ? (
           <View style={styles.emptyState}>
             <Clock size={64} color={colors.textLight} strokeWidth={1.5} />
-            <Text style={styles.emptyText}>No food checks yet</Text>
+            <Text style={styles.emptyText}>No scans yet</Text>
             <Text style={styles.emptySubtext}>
               Your scanned foods will appear here
             </Text>
           </View>
         ) : (
-          Object.entries(groupedChecks).map(([date, dateChecks]) => (
+          Object.entries(groupedScans).map(([date, dateScans]) => (
             <View key={date} style={styles.dateSection}>
               <Text style={styles.dateHeader}>{date}</Text>
               <View style={styles.timeline}>
-                {dateChecks.map((check, index) => (
+                {dateScans.map((scan, index) => (
                   <TimelineItem
-                    key={check.id}
-                    check={check}
-                    isLast={index === dateChecks.length - 1}
+                    key={scan.id}
+                    scan={scan}
+                    isLast={index === dateScans.length - 1}
                   />
                 ))}
               </View>
@@ -112,10 +145,20 @@ export default function HistoryScreen() {
   );
 }
 
-function TimelineItem({ check, isLast }: { check: FoodCheck; isLast: boolean }) {
-  const isSafe = Number(check.isSafe) > 0;
-  const warningIngredients = check.warningIngredients ? JSON.parse(check.warningIngredients) : [];
-  const time = new Date(check.checkedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+function TimelineItem({ scan, isLast }: { scan: HistoryScan; isLast: boolean }) {
+  const isSafe = scan.isSafe;
+  
+  // Use scannedAt from backend
+  const timestamp = scan.scannedAt || Date.now();
+  const time = new Date(timestamp).toLocaleTimeString([], {
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+
+  // Parse warnings - backend sends comma-separated string
+  const warningsArray = scan.warnings 
+    ? scan.warnings.split(',').map(w => w.trim()).filter(Boolean)
+    : [];
 
   return (
     <View style={styles.timelineItem}>
@@ -131,10 +174,10 @@ function TimelineItem({ check, isLast }: { check: FoodCheck; isLast: boolean }) 
       </View>
 
       <View style={styles.timelineContent}>
-        <View style={styles.checkCard}>
-          <View style={styles.checkHeader}>
-            <Text style={styles.checkFoodName}>{check.foodName}</Text>
-            <Text style={styles.checkTime}>{time}</Text>
+        <View style={styles.scanCard}>
+          <View style={styles.scanHeader}>
+            <Text style={styles.scanFoodName}>{scan.foodName || 'Unknown Food'}</Text>
+            <Text style={styles.scanTime}>{time}</Text>
           </View>
 
           <View style={[styles.statusBadge, isSafe ? styles.statusSafe : styles.statusWarning]}>
@@ -143,14 +186,15 @@ function TimelineItem({ check, isLast }: { check: FoodCheck; isLast: boolean }) 
             </Text>
           </View>
 
-          {!isSafe && warningIngredients.length > 0 && (
+          {/* Show warnings if any */}
+          {!isSafe && warningsArray.length > 0 && (
             <View style={styles.warningList}>
-              <Text style={styles.warningTitle}>Concerning ingredients:</Text>
-              {warningIngredients.slice(0, 2).map((ingredient: string, idx: number) => (
-                <Text key={idx} style={styles.warningItem}>• {ingredient}</Text>
+              <Text style={styles.warningTitle}>⚠ Warnings:</Text>
+              {warningsArray.slice(0, 3).map((warning, idx) => (
+                <Text key={idx} style={styles.warningItem}>• {warning}</Text>
               ))}
-              {warningIngredients.length > 2 && (
-                <Text style={styles.warningMore}>+{warningIngredients.length - 2} more</Text>
+              {warningsArray.length > 3 && (
+                <Text style={styles.warningMore}>+{warningsArray.length - 3} more</Text>
               )}
             </View>
           )}
@@ -173,6 +217,7 @@ const styles = StyleSheet.create({
   loadingText: {
     ...typography.body,
     color: colors.textSecondary,
+    marginTop: spacing.md,
   },
   header: {
     paddingHorizontal: spacing.xl,
@@ -193,6 +238,29 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingHorizontal: spacing.xl,
     paddingVertical: spacing.lg,
+  },
+  errorState: {
+    alignItems: 'center',
+    paddingVertical: spacing.xxxl,
+  },
+  errorText: {
+    ...typography.body,
+    color: colors.textSecondary,
+    marginTop: spacing.lg,
+    textAlign: 'center',
+    paddingHorizontal: spacing.xl,
+  },
+  retryButton: {
+    marginTop: spacing.lg,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.xl,
+    backgroundColor: colors.primary,
+    borderRadius: borderRadius.md,
+  },
+  retryButtonText: {
+    ...typography.body,
+    fontWeight: '600',
+    color: colors.background,
   },
   emptyState: {
     alignItems: 'center',
@@ -251,7 +319,7 @@ const styles = StyleSheet.create({
   timelineContent: {
     flex: 1,
   },
-  checkCard: {
+  scanCard: {
     backgroundColor: colors.background,
     padding: spacing.lg,
     borderRadius: borderRadius.lg,
@@ -259,18 +327,18 @@ const styles = StyleSheet.create({
     borderColor: colors.borderLight,
     ...shadows.sm,
   },
-  checkHeader: {
+  scanHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: spacing.sm,
   },
-  checkFoodName: {
+  scanFoodName: {
     ...typography.h4,
     color: colors.text,
     flex: 1,
   },
-  checkTime: {
+  scanTime: {
     ...typography.caption,
     color: colors.textLight,
   },
@@ -313,6 +381,7 @@ const styles = StyleSheet.create({
     ...typography.caption,
     color: colors.textSecondary,
     marginLeft: spacing.sm,
+    marginBottom: 2,
   },
   warningMore: {
     ...typography.small,

@@ -1,75 +1,101 @@
 
-import React, { useState, useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
+
+
+
+
+
+import React, { useState, useRef, useEffect } from 'react';
+import { View, Text, TouchableOpacity, Alert, ActivityIndicator, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { CameraView, useCameraPermissions } from 'expo-camera';
-import { X, Camera as CameraIcon, Zap } from 'lucide-react-native';
+import { CameraView, CameraType, useCameraPermissions } from 'expo-camera'; // UPDATED IMPORTS
+import { X, Zap } from 'lucide-react-native';
 import Button from '@/components/ui/Button';
+import { scanAPI } from '@/lib/api/scan';
 import { colors, spacing, typography, borderRadius } from '@/constants/design';
 
 export default function CameraScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams();
-  const [permission, requestPermission] = useCameraPermissions();
+  const params = useLocalSearchParams<{ foodName?: string }>();
+  const [permission, requestPermission] = useCameraPermissions(); // FIXED
   const [capturing, setCapturing] = useState(false);
-  const cameraRef = useRef<any>(null);
+  const [uploading, setUploading] = useState(false);
+  const cameraRef = useRef<CameraView>(null); // FIXED TYPE
 
-  if (!permission) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.loadingContainer}>
-          <Text style={styles.loadingText}>Loading camera...</Text>
-        </View>
-      </SafeAreaView>
-    );
-  }
+  useEffect(() => {
+    if (!permission?.granted) requestPermission();
+  }, []);
 
-  if (!permission.granted) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.permissionContainer}>
-          <CameraIcon size={64} color={colors.textLight} />
-          <Text style={styles.permissionTitle}>Camera Permission Required</Text>
-          <Text style={styles.permissionText}>
-            We need access to your camera to scan ingredient labels
-          </Text>
-          <Button onPress={requestPermission} size="large">
-            Grant Permission
-          </Button>
-        </View>
-      </SafeAreaView>
-    );
-  }
+  if (!permission) return (
+    <SafeAreaView style={styles.loadingContainer}>
+      <Text style={styles.loadingText}>Loading camera...</Text>
+    </SafeAreaView>
+  );
+
+  if (!permission.granted) return (
+    <SafeAreaView style={styles.permissionContainer}>
+      <Text style={styles.permissionTitle}>Camera Permission Required</Text>
+      <Text style={styles.permissionText}>
+        We need access to your camera to scan ingredient labels
+      </Text>
+      <Button onPress={requestPermission} size="large">Grant Permission</Button>
+    </SafeAreaView>
+  );
 
   const takePicture = async () => {
     if (cameraRef.current && !capturing) {
       setCapturing(true);
       try {
-        const photo = await cameraRef.current.takePictureAsync({
-          quality: 0.8,
+        const photo = await cameraRef.current.takePictureAsync({ 
+          quality: 0.8, 
+          base64: false 
         });
         
-        // Navigate to analyzing screen with photo
-        router.push({
-          pathname: '/(scan)/analyzing',
-          params: {
-            foodName: params.foodName,
-            imageUri: photo.uri,
-          }
-        });
+        if (photo?.uri) {
+          await uploadImage(photo.uri);
+        }
       } catch (error) {
-        console.error('Failed to take picture:', error);
+        console.error('Capture error:', error);
         Alert.alert('Error', 'Failed to capture image');
+      } finally {
         setCapturing(false);
       }
+    }
+  };
+
+  const uploadImage = async (uri: string) => {
+    setUploading(true);
+    try {
+      const result = await scanAPI.scanWithImage({ 
+        image: uri, 
+        foodName: params.foodName || 'Unknown Food' 
+      });
+      
+      // Backend returns: foodName, ingredients, isSafe, riskLevel, warnings, explanation
+      router.push({
+        pathname: '/(scan)/result',
+        params: { 
+          foodName: result.foodName,
+          isSafe: result.isSafe ? '1' : '0',
+          riskLevel: result.riskLevel,
+          warningIngredients: JSON.stringify(result.warnings),
+          analysis: result.explanation,
+          imageUri: uri,
+          ingredients: result.ingredients
+        },
+      });
+    } catch (error: any) {
+      console.error('Upload error:', error);
+      Alert.alert('Error', error?.response?.data?.error || error.message || 'Failed to upload image');
+    } finally {
+      setUploading(false);
     }
   };
 
   return (
     <View style={styles.container}>
       <CameraView style={styles.camera} ref={cameraRef} facing="back">
-        <SafeAreaView style={styles.cameraOverlay}>
+        <SafeAreaView style={styles.overlay}>
           <View style={styles.topBar}>
             <TouchableOpacity onPress={() => router.back()} style={styles.closeButton}>
               <X size={24} color={colors.background} />
@@ -93,11 +119,15 @@ export default function CameraScreen() {
 
           <View style={styles.bottomBar}>
             <TouchableOpacity
-              style={[styles.captureButton, capturing && styles.captureButtonDisabled]}
+              style={[styles.captureButton, (capturing || uploading) && styles.captureDisabled]}
               onPress={takePicture}
-              disabled={capturing}
+              disabled={capturing || uploading}
             >
-              <View style={styles.captureButtonInner} />
+              {uploading ? (
+                <ActivityIndicator size="small" color={colors.primary} />
+              ) : (
+                <View style={styles.captureInner} />
+              )}
             </TouchableOpacity>
           </View>
         </SafeAreaView>
@@ -107,136 +137,94 @@ export default function CameraScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.text,
+  container: { flex: 1, backgroundColor: colors.text },
+  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  loadingText: { ...typography.body, color: colors.textSecondary },
+  permissionContainer: { 
+    flex: 1, 
+    justifyContent: 'center', 
+    alignItems: 'center', 
+    padding: spacing.xl, 
+    gap: spacing.lg 
   },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+  permissionTitle: { ...typography.h3, color: colors.text, textAlign: 'center' },
+  permissionText: { 
+    ...typography.body, 
+    color: colors.textSecondary, 
+    textAlign: 'center', 
+    marginBottom: spacing.md 
   },
-  loadingText: {
-    ...typography.body,
-    color: colors.textSecondary,
+  camera: { flex: 1 },
+  overlay: { flex: 1 },
+  topBar: { padding: spacing.lg },
+  closeButton: { 
+    width: 44, 
+    height: 44, 
+    borderRadius: 22, 
+    backgroundColor: 'rgba(0,0,0,0.5)', 
+    justifyContent: 'center', 
+    alignItems: 'center' 
   },
-  permissionContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: spacing.xl,
-    gap: spacing.lg,
+  scanFrame: { 
+    flex: 1, 
+    justifyContent: 'center', 
+    alignItems: 'center', 
+    paddingHorizontal: spacing.xl 
   },
-  permissionTitle: {
-    ...typography.h3,
-    color: colors.text,
-    textAlign: 'center',
+  corner: { position: 'absolute', width: 40, height: 40, borderColor: colors.primary },
+  topLeft: { 
+    top: '20%', 
+    left: spacing.xl, 
+    borderTopWidth: 4, 
+    borderLeftWidth: 4, 
+    borderTopLeftRadius: 8 
   },
-  permissionText: {
-    ...typography.body,
-    color: colors.textSecondary,
-    textAlign: 'center',
+  topRight: { 
+    top: '20%', 
+    right: spacing.xl, 
+    borderTopWidth: 4, 
+    borderRightWidth: 4, 
+    borderTopRightRadius: 8 
   },
-  camera: {
-    flex: 1,
+  bottomLeft: { 
+    bottom: '20%', 
+    left: spacing.xl, 
+    borderBottomWidth: 4, 
+    borderLeftWidth: 4, 
+    borderBottomLeftRadius: 8 
   },
-  cameraOverlay: {
-    flex: 1,
+  bottomRight: { 
+    bottom: '20%', 
+    right: spacing.xl, 
+    borderBottomWidth: 4, 
+    borderRightWidth: 4, 
+    borderBottomRightRadius: 8 
   },
-  topBar: {
-    padding: spacing.lg,
+  scanLine: { width: '80%', height: 2, backgroundColor: colors.primary, opacity: 0.8 },
+  instructions: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    justifyContent: 'center', 
+    gap: spacing.sm, 
+    backgroundColor: 'rgba(0,0,0,0.7)', 
+    paddingVertical: spacing.md, 
+    paddingHorizontal: spacing.lg, 
+    marginHorizontal: spacing.xl, 
+    borderRadius: borderRadius.md, 
+    marginBottom: spacing.xl 
   },
-  closeButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    alignItems: 'center',
-    justifyContent: 'center',
+  instructionText: { ...typography.body, color: colors.background },
+  bottomBar: { paddingBottom: spacing.xl, alignItems: 'center' },
+  captureButton: { 
+    width: 70, 
+    height: 70, 
+    borderRadius: 35, 
+    backgroundColor: colors.background, 
+    justifyContent: 'center', 
+    alignItems: 'center', 
+    borderWidth: 4, 
+    borderColor: colors.primary 
   },
-  scanFrame: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: spacing.xl,
-  },
-  corner: {
-    position: 'absolute',
-    width: 40,
-    height: 40,
-    borderColor: colors.primary,
-  },
-  topLeft: {
-    top: '20%',
-    left: spacing.xl,
-    borderTopWidth: 4,
-    borderLeftWidth: 4,
-    borderTopLeftRadius: 8,
-  },
-  topRight: {
-    top: '20%',
-    right: spacing.xl,
-    borderTopWidth: 4,
-    borderRightWidth: 4,
-    borderTopRightRadius: 8,
-  },
-  bottomLeft: {
-    bottom: '20%',
-    left: spacing.xl,
-    borderBottomWidth: 4,
-    borderLeftWidth: 4,
-    borderBottomLeftRadius: 8,
-  },
-  bottomRight: {
-    bottom: '20%',
-    right: spacing.xl,
-    borderBottomWidth: 4,
-    borderRightWidth: 4,
-    borderBottomRightRadius: 8,
-  },
-  scanLine: {
-    width: '80%',
-    height: 2,
-    backgroundColor: colors.primary,
-    opacity: 0.8,
-  },
-  instructions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.sm,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.lg,
-    marginHorizontal: spacing.xl,
-    borderRadius: borderRadius.md,
-    marginBottom: spacing.xl,
-  },
-  instructionText: {
-    ...typography.body,
-    color: colors.background,
-  },
-  bottomBar: {
-    paddingBottom: spacing.xl,
-    alignItems: 'center',
-  },
-  captureButton: {
-    width: 70,
-    height: 70,
-    borderRadius: 35,
-    backgroundColor: colors.background,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 4,
-    borderColor: colors.primary,
-  },
-  captureButtonDisabled: {
-    opacity: 0.5,
-  },
-  captureButtonInner: {
-    width: 54,
-    height: 54,
-    borderRadius: 27,
-    backgroundColor: colors.primary,
-  },
+  captureDisabled: { opacity: 0.5 },
+  captureInner: { width: 54, height: 54, borderRadius: 27, backgroundColor: colors.primary },
 });

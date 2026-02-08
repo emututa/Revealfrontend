@@ -85,7 +85,7 @@ export default function ProfileScreen() {
 
   const handleEditProfile = () => {
     // Navigate to edit profile screen
-    router.push('/(app)/edit-profile');
+    router.push('/(tabs)/edit-profile');
   };
 
   if (loading) {

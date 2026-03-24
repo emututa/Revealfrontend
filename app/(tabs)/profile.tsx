@@ -1,12 +1,8 @@
-
-
-
-
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { Heart, AlertCircle, FileText, LogOut, Edit } from 'lucide-react-native';
+import { Heart, AlertCircle, FileText, LogOut, Edit, ChevronRight, ShieldCheck, Settings } from 'lucide-react-native';
 import Button from '@/components/ui/Button';
 import { colors, spacing, typography, borderRadius, shadows } from '@/constants/design';
 import { userAPI } from '@/lib/api/user';
@@ -39,15 +35,11 @@ export default function ProfileScreen() {
     try {
       setLoading(true);
       setError(null);
-      
-      // Fetch profile from backend
       const profileData = await userAPI.getProfile();
       setProfile(profileData);
     } catch (err: any) {
       console.error('Failed to load profile:', err);
       setError(err.response?.data?.error || 'Failed to load profile');
-      
-      // If unauthorized, redirect to login
       if (err.response?.status === 401) {
         await AsyncStorage.removeItem('token');
         router.replace('/(auth)/welcome');
@@ -60,20 +52,16 @@ export default function ProfileScreen() {
   const handleLogout = () => {
     Alert.alert(
       'Logout',
-      'Are you sure you want to logout?',
+      'Are you sure you want to sign out?',
       [
         { text: 'Cancel', style: 'cancel' },
         {
-          text: 'Logout',
+          text: 'Sign Out',
           style: 'destructive',
           onPress: async () => {
             try {
               await authAPI.logout();
-              await AsyncStorage.removeItem('token');
-              router.replace('/(auth)/welcome');
-            } catch (error) {
-              console.error('Logout error:', error);
-              // Still clear local storage and redirect even if API call fails
+            } finally {
               await AsyncStorage.removeItem('token');
               router.replace('/(auth)/welcome');
             }
@@ -83,154 +71,136 @@ export default function ProfileScreen() {
     );
   };
 
-  const handleEditProfile = () => {
-    // Navigate to edit profile screen
-    router.push('/(tabs)/edit-profile');
-  };
-
   if (loading) {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.loadingContainer}>
-          <Text style={styles.loadingText}>Loading profile...</Text>
+          <ActivityIndicator size="large" color={colors.primary} />
+          <Text style={styles.loadingText}>Loading your profile...</Text>
         </View>
       </SafeAreaView>
     );
   }
 
-  if (error) {
+  if (error || !profile) {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.errorContainer}>
           <AlertCircle size={48} color={colors.error} />
-          <Text style={styles.errorText}>{error}</Text>
+          <Text style={styles.errorText}>{error || 'Profile not found'}</Text>
           <Button onPress={loadProfile} variant="primary" size="large">
-            Retry
+            Try Again
           </Button>
         </View>
       </SafeAreaView>
     );
   }
 
-  if (!profile) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.errorContainer}>
-          <Text style={styles.errorText}>No profile data available</Text>
-        </View>
-      </SafeAreaView>
-    );
-  }
-
-  const { healthConditions, allergicFoods, foodReactions } = profile;
-
   return (
-    <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+    <SafeAreaView style={styles.container} edges={['top']}>
+      <ScrollView 
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
         <View style={styles.header}>
-          <View style={styles.avatarContainer}>
-            <Text style={styles.avatarText}>
-              {profile.name?.charAt(0).toUpperCase() || 'U'}
-            </Text>
+          <View style={styles.avatarWrapper}>
+            <View style={styles.avatar}>
+              <Text style={styles.avatarText}>
+                {profile.name?.charAt(0).toUpperCase() || 'U'}
+              </Text>
+            </View>
+            <TouchableOpacity style={styles.editBadge}>
+              <Edit size={14} color={colors.background} />
+            </TouchableOpacity>
           </View>
           <Text style={styles.userName}>{profile.name || 'User'}</Text>
           <Text style={styles.userEmail}>{profile.email}</Text>
-          
-          <TouchableOpacity 
-            style={styles.editButton} 
-            onPress={handleEditProfile}
-          >
-            <Edit size={16} color={colors.primary} />
-            <Text style={styles.editButtonText}>Edit Profile</Text>
+        </View>
+
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <ShieldCheck size={20} color={colors.primary} />
+            <Text style={styles.sectionTitle}>Shield Profile</Text>
+          </View>
+
+          <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/(onboarding)/step1')}>
+            <View style={[styles.menuIcon, { backgroundColor: colors.primaryUltraLight }]}>
+              <ActivityIcon color={colors.primaryDark} />
+            </View>
+            <View style={styles.menuContent}>
+              <Text style={styles.menuTitle}>Health Conditions</Text>
+              <Text style={styles.menuSubtitle}>{profile.healthConditions.length || 'None'} added</Text>
+            </View>
+            <ChevronRight size={20} color={colors.textLight} />
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/(onboarding)/step2')}>
+            <View style={[styles.menuIcon, { backgroundColor: '#F0FDF4' }]}>
+              <Heart size={20} color={colors.success} />
+            </View>
+            <View style={styles.menuContent}>
+              <Text style={styles.menuTitle}>Food Allergies</Text>
+              <Text style={styles.menuSubtitle}>{profile.allergicFoods.length || 'None'} active</Text>
+            </View>
+            <ChevronRight size={20} color={colors.textLight} />
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/(onboarding)/step3')}>
+            <View style={[styles.menuIcon, { backgroundColor: '#FFF7ED' }]}>
+              <FileText size={20} color={colors.warning} />
+            </View>
+            <View style={styles.menuContent}>
+              <Text style={styles.menuTitle}>Past Reactions</Text>
+              <Text style={styles.menuSubtitle}>{profile.foodReactions.length || 'No'} logged events</Text>
+            </View>
+            <ChevronRight size={20} color={colors.textLight} />
           </TouchableOpacity>
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Health Profile</Text>
-
-          {/* Allergic Foods */}
-          <View style={styles.infoCard}>
-            <View style={styles.infoHeader}>
-              <Heart size={20} color={colors.primary} />
-              <Text style={styles.infoTitle}>
-                Allergic Foods ({allergicFoods.length})
-              </Text>
-            </View>
-            {allergicFoods.length > 0 ? (
-              <View style={styles.tagsList}>
-                {allergicFoods.map((food, index) => (
-                  <View key={index} style={styles.tag}>
-                    <Text style={styles.tagText}>{food}</Text>
-                  </View>
-                ))}
-              </View>
-            ) : (
-              <Text style={styles.emptyText}>No food allergies listed</Text>
-            )}
+          <View style={styles.sectionHeader}>
+            <Settings size={20} color={colors.textSecondary} />
+            <Text style={styles.sectionTitle}>App Preferences</Text>
           </View>
-
-          {/* Health Conditions */}
-          <View style={styles.infoCard}>
-            <View style={styles.infoHeader}>
-              <AlertCircle size={20} color={colors.primary} />
-              <Text style={styles.infoTitle}>
-                Health Conditions ({healthConditions.length})
-              </Text>
+          
+          <TouchableOpacity style={styles.menuItem}>
+            <View style={[styles.menuIcon, { backgroundColor: colors.backgroundSecondary }]}>
+              <Settings size={20} color={colors.textSecondary} />
             </View>
-            {healthConditions.length > 0 ? (
-              <View style={styles.tagsList}>
-                {healthConditions.map((condition, index) => (
-                  <View key={index} style={styles.tag}>
-                    <Text style={styles.tagText}>{condition}</Text>
-                  </View>
-                ))}
-              </View>
-            ) : (
-              <Text style={styles.emptyText}>No health conditions listed</Text>
-            )}
-          </View>
-
-          {/* Past Food Reactions */}
-          {foodReactions.length > 0 && (
-            <View style={styles.infoCard}>
-              <View style={styles.infoHeader}>
-                <FileText size={20} color={colors.primary} />
-                <Text style={styles.infoTitle}>
-                  Past Food Reactions ({foodReactions.length})
-                </Text>
-              </View>
-              <View style={styles.reactionsList}>
-                {foodReactions.map((reaction, index) => (
-                  <View key={index} style={styles.reactionItem}>
-                    <Text style={styles.reactionFood}>{reaction.food}</Text>
-                    {reaction.notes && (
-                      <Text style={styles.reactionNotes}>{reaction.notes}</Text>
-                    )}
-                  </View>
-                ))}
-              </View>
+            <View style={styles.menuContent}>
+              <Text style={styles.menuTitle}>Notification Settings</Text>
             </View>
-          )}
+            <ChevronRight size={20} color={colors.textLight} />
+          </TouchableOpacity>
         </View>
 
         <View style={styles.actions}>
           <Button
             onPress={handleLogout}
-            variant="outline"
+            variant="subtle"
             size="large"
             style={styles.logoutButton}
           >
             <LogOut size={20} color={colors.error} />
-            <Text style={styles.logoutButtonText}>Logout</Text>
+            <Text style={styles.logoutText}>Sign Out</Text>
           </Button>
         </View>
 
         <View style={styles.footer}>
-          <Text style={styles.footerText}>Reveal v1.0</Text>
-          <Text style={styles.footerSubtext}>Your trusted food safety companion</Text>
+          <Text style={styles.versionText}>Reveal App v1.2.0</Text>
+          <Text style={styles.copyrightText}>Helping you eat with confidence.</Text>
         </View>
       </ScrollView>
     </SafeAreaView>
+  );
+}
+
+function ActivityIcon({ color }: { color: string }) {
+  return (
+    <View style={{ width: 20, height: 20, alignItems: 'center', justifyContent: 'center' }}>
+      <View style={{ width: 12, height: 12, borderRadius: 6, borderWidth: 2, borderColor: color }} />
+      <View style={{ position: 'absolute', width: 2, height: 8, backgroundColor: color, top: 2 }} />
+    </View>
   );
 }
 
@@ -243,10 +213,12 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    gap: spacing.md,
   },
   loadingText: {
     ...typography.body,
     color: colors.textSecondary,
+    fontWeight: '600',
   },
   errorContainer: {
     flex: 1,
@@ -261,150 +233,134 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   scrollContent: {
-    paddingHorizontal: spacing.xl,
-    paddingVertical: spacing.lg,
-    gap: spacing.xl,
+    paddingBottom: spacing.xxl,
   },
   header: {
     alignItems: 'center',
-    paddingVertical: spacing.lg,
+    paddingVertical: spacing.xxl,
+    backgroundColor: colors.background,
   },
-  avatarContainer: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
+  avatarWrapper: {
+    position: 'relative',
+    marginBottom: spacing.lg,
+  },
+  avatar: {
+    width: 90,
+    height: 90,
+    borderRadius: 30,
     backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: spacing.md,
     ...shadows.md,
   },
   avatarText: {
-    fontSize: 40,
+    fontSize: 36,
     fontWeight: '700',
     color: colors.background,
+  },
+  editBadge: {
+    position: 'absolute',
+    bottom: -4,
+    right: -4,
+    width: 32,
+    height: 32,
+    borderRadius: 12,
+    backgroundColor: colors.primaryDark,
+    borderWidth: 3,
+    borderColor: colors.background,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...shadows.sm,
   },
   userName: {
     ...typography.h2,
     color: colors.text,
+    fontSize: 24,
     marginBottom: spacing.xs,
   },
   userEmail: {
     ...typography.body,
     color: colors.textSecondary,
-    marginBottom: spacing.md,
-  },
-  editButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.md,
-    borderRadius: borderRadius.md,
-    backgroundColor: colors.backgroundSecondary,
-  },
-  editButtonText: {
-    ...typography.body,
-    color: colors.primary,
-    fontWeight: '600',
+    fontWeight: '500',
   },
   section: {
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing.xl,
     gap: spacing.md,
   },
-  sectionTitle: {
-    ...typography.h3,
-    color: colors.text,
-    marginBottom: spacing.sm,
-  },
-  infoCard: {
-    backgroundColor: colors.background,
-    padding: spacing.lg,
-    borderRadius: borderRadius.lg,
-    borderWidth: 1,
-    borderColor: colors.borderLight,
-    ...shadows.sm,
-  },
-  infoHeader: {
+  sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
-    marginBottom: spacing.md,
-  },
-  infoTitle: {
-    ...typography.h4,
-    color: colors.text,
-  },
-  tagsList: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.sm,
-  },
-  tag: {
-    backgroundColor: colors.backgroundTertiary,
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.md,
-    borderRadius: borderRadius.md,
-    borderWidth: 1,
-    borderColor: colors.primary,
-  },
-  tagText: {
-    ...typography.body,
-    color: colors.text,
-  },
-  emptyText: {
-    ...typography.body,
-    color: colors.textLight,
-    fontStyle: 'italic',
-  },
-  reactionsList: {
-    gap: spacing.md,
-  },
-  reactionItem: {
-    backgroundColor: colors.backgroundSecondary,
-    padding: spacing.md,
-    borderRadius: borderRadius.md,
-    borderLeftWidth: 3,
-    borderLeftColor: colors.warning,
-  },
-  reactionFood: {
-    ...typography.body,
-    color: colors.text,
-    fontWeight: '600',
     marginBottom: spacing.xs,
   },
-  reactionNotes: {
+  sectionTitle: {
     ...typography.small,
     color: colors.textSecondary,
-    lineHeight: 18,
+    fontWeight: '800',
+    letterSpacing: 1,
+    textTransform: 'uppercase',
   },
-  actions: {
-    gap: spacing.md,
-  },
-  logoutButton: {
-    borderColor: colors.error,
+  menuItem: {
     flexDirection: 'row',
-    gap: spacing.sm,
+    alignItems: 'center',
+    backgroundColor: colors.backgroundSecondary,
+    padding: spacing.md,
+    borderRadius: borderRadius.xl,
+    gap: spacing.md,
+    ...shadows.sm,
+  },
+  menuIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  logoutButtonText: {
-    color: colors.error,
+  menuContent: {
+    flex: 1,
+  },
+  menuTitle: {
     ...typography.body,
-    fontWeight: '600',
+    color: colors.text,
+    fontWeight: '700',
+  },
+  menuSubtitle: {
+    ...typography.caption,
+    color: colors.textLight,
+    marginTop: 2,
+  },
+  actions: {
+    marginTop: spacing.xxl,
+    paddingHorizontal: spacing.xl,
+  },
+  logoutButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.md,
+    borderColor: colors.errorLight,
+    backgroundColor: '#FEF2F2',
+  },
+  logoutText: {
+    ...typography.body,
+    color: colors.error,
+    fontWeight: '700',
   },
   footer: {
     alignItems: 'center',
-    paddingTop: spacing.lg,
+    paddingTop: spacing.xxl,
     paddingBottom: spacing.xl,
+    opacity: 0.5,
   },
-  footerText: {
+  versionText: {
     ...typography.caption,
     color: colors.textLight,
+    fontWeight: '700',
   },
-  footerSubtext: {
+  copyrightText: {
     ...typography.small,
     color: colors.textLight,
-    marginTop: spacing.xs,
+    marginTop: 2,
   },
 });
-

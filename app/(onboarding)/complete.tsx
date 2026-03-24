@@ -1,20 +1,19 @@
-
-
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, Text, StyleSheet, ActivityIndicator, Dimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { CheckCircle2 } from 'lucide-react-native';
-import { colors, spacing, typography } from '@/constants/design';
+import { CheckCircle2, PartyPopper } from 'lucide-react-native';
+import { colors, spacing, typography, borderRadius, shadows } from '@/constants/design';
 import { mockAuth, mockDb } from '@/lib/auth';
+
+const { width } = Dimensions.get('window');
 
 export default function OnboardingComplete() {
   const router = useRouter();
   const params = useLocalSearchParams();
-  const [saving, setSaving] = useState(false);
+  const [saving, setSaving] = useState(true);
 
   const saveHealthProfile = async () => {
-    setSaving(true);
     try {
       const user = await mockAuth.me();
       
@@ -33,31 +32,62 @@ export default function OnboardingComplete() {
         updatedAt: new Date().toISOString(),
       });
 
-      router.replace('/(tabs)');
+      // Show success for 1.5s before redirecting
+      setTimeout(() => {
+        setSaving(false);
+        setTimeout(() => {
+          router.replace('/(tabs)');
+        }, 1500);
+      }, 1000);
+
     } catch (error) {
       console.error('Failed to save profile:', error);
-      setSaving(false);
+      // Fallback redirect if error
+      router.replace('/(tabs)');
     }
   };
 
   useEffect(() => {
     saveHealthProfile();
-  }, [saveHealthProfile]);
+  }, []);
 
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.content}>
-        <View style={styles.iconContainer}>
-          <CheckCircle2 size={80} color={colors.primary} strokeWidth={1.5} />
+        <View style={styles.card}>
+          <View style={styles.iconContainer}>
+            {saving ? (
+              <ActivityIndicator size="large" color={colors.primary} />
+            ) : (
+              <CheckCircle2 size={64} color={colors.success} strokeWidth={2.5} />
+            )}
+          </View>
+
+          <Text style={styles.title}>
+            {saving ? 'Saving Your Profile' : 'You\'re All Set!'}
+          </Text>
+          
+          <Text style={styles.subtitle}>
+            {saving 
+              ? 'We\'re securely encrypting and saving your health preferences...' 
+              : 'Your profile is ready. We\'ll use this to keep you safe when checking foods.'}
+          </Text>
+
+          {!saving && (
+            <View style={styles.successBadge}>
+              <PartyPopper size={18} color={colors.primaryDark} />
+              <Text style={styles.successText}>Setup Complete</Text>
+            </View>
+          )}
         </View>
 
-        <Text style={styles.title}>Profile Created!</Text>
-        <Text style={styles.subtitle}>
-          Your health profile has been securely saved. We'll use this information to keep you safe.
-        </Text>
-
         {saving && (
-          <Text style={styles.savingText}>Setting up your dashboard...</Text>
+          <View style={styles.loadingFooter}>
+            <Text style={styles.loadingTitle}>Optimizing Dashboard</Text>
+            <View style={styles.dotsContainer}>
+               <ActivityIndicator size="small" color={colors.primaryLight} />
+            </View>
+          </View>
         )}
       </View>
     </SafeAreaView>
@@ -72,29 +102,72 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     paddingHorizontal: spacing.xl,
-    paddingVertical: spacing.xxl,
     alignItems: 'center',
     justifyContent: 'center',
   },
+  card: {
+    width: '100%',
+    backgroundColor: colors.backgroundSecondary,
+    borderRadius: borderRadius.xxl,
+    padding: spacing.xl,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+    ...shadows.md,
+  },
   iconContainer: {
+    width: 120,
+    height: 120,
+    borderRadius: 40,
+    backgroundColor: colors.background,
+    alignItems: 'center',
+    justifyContent: 'center',
     marginBottom: spacing.xl,
+    ...shadows.sm,
   },
   title: {
     ...typography.h2,
     color: colors.text,
-    marginBottom: spacing.md,
     textAlign: 'center',
+    marginBottom: spacing.md,
   },
   subtitle: {
-    ...typography.body,
+    ...typography.bodyLarge,
     color: colors.textSecondary,
     textAlign: 'center',
     lineHeight: 24,
-    marginBottom: spacing.xl,
+    marginBottom: spacing.xxl,
   },
-  savingText: {
+  successBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    backgroundColor: colors.primaryUltraLight,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    borderRadius: borderRadius.full,
+    borderWidth: 1,
+    borderColor: colors.primaryLight,
+  },
+  successText: {
     ...typography.body,
-    color: colors.primary,
-    fontWeight: '600',
+    color: colors.primaryDark,
+    fontWeight: '700',
   },
+  loadingFooter: {
+    marginTop: spacing.xxl,
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  loadingTitle: {
+    ...typography.small,
+    color: colors.textLight,
+    fontWeight: '700',
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+  },
+  dotsContainer: {
+    flexDirection: 'row',
+    gap: spacing.xs,
+  }
 });

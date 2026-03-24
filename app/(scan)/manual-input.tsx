@@ -1,11 +1,10 @@
-
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, TextInput, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { X } from 'lucide-react-native';
+import { X, FileText } from 'lucide-react-native';
 import Button from '@/components/ui/Button';
-import { colors, spacing, typography, borderRadius } from '@/constants/design';
+import { colors, spacing, typography, borderRadius, shadows } from '@/constants/design';
 
 export default function ManualInputScreen() {
   const router = useRouter();
@@ -25,7 +24,7 @@ export default function ManualInputScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} style={styles.closeButton}>
           <X size={24} color={colors.text} />
@@ -34,7 +33,14 @@ export default function ManualInputScreen() {
         <View style={styles.placeholder} />
       </View>
 
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView 
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.stepIndicator}>
+          <Text style={styles.stepText}>Step 2 of 2</Text>
+        </View>
+
         <Text style={styles.title}>Enter Ingredients</Text>
         <Text style={styles.subtitle}>
           Type or paste the ingredient list from the package
@@ -47,7 +53,7 @@ export default function ManualInputScreen() {
             onChangeText={setIngredients}
             placeholder="e.g., Wheat flour, sugar, vegetable oil, cocoa powder, baking soda, salt, natural flavors..."
             multiline
-            numberOfLines={12}
+            numberOfLines={10}
             textAlignVertical="top"
             placeholderTextColor={colors.textLight}
             autoFocus
@@ -55,9 +61,12 @@ export default function ManualInputScreen() {
         </View>
 
         <View style={styles.tipCard}>
-          <Text style={styles.tipTitle}>💡 Tip</Text>
+          <View style={styles.tipHeader}>
+            <FileText size={18} color={colors.primary} />
+            <Text style={styles.tipTitle}>Helpful Tip</Text>
+          </View>
           <Text style={styles.tipText}>
-            Include all ingredients listed on the package for the most accurate analysis
+            Include all ingredients listed on the package for the most accurate analysis. Don't worry about punctuation.
           </Text>
         </View>
       </ScrollView>
@@ -87,15 +96,19 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.borderLight,
   },
   closeButton: {
-    padding: spacing.xs,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.backgroundSecondary,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   headerTitle: {
     ...typography.h4,
     color: colors.text,
+    fontWeight: '700',
   },
   placeholder: {
     width: 40,
@@ -103,13 +116,28 @@ const styles = StyleSheet.create({
   content: {
     flexGrow: 1,
     paddingHorizontal: spacing.xl,
-    paddingTop: spacing.xl,
+    paddingTop: spacing.lg,
     paddingBottom: spacing.lg,
+  },
+  stepIndicator: {
+    backgroundColor: colors.primaryUltraLight,
+    alignSelf: 'flex-start',
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xxs,
+    borderRadius: borderRadius.sm,
+    marginBottom: spacing.lg,
+    borderWidth: 1,
+    borderColor: colors.primaryLight,
+  },
+  stepText: {
+    ...typography.small,
+    color: colors.primaryDark,
+    fontSize: 10,
   },
   title: {
     ...typography.h2,
     color: colors.text,
-    marginBottom: spacing.sm,
+    marginBottom: spacing.xs,
   },
   subtitle: {
     ...typography.body,
@@ -117,42 +145,51 @@ const styles = StyleSheet.create({
     marginBottom: spacing.xl,
   },
   textAreaContainer: {
-    backgroundColor: colors.background,
+    backgroundColor: colors.backgroundSecondary,
     borderWidth: 1.5,
-    borderColor: colors.border,
-    borderRadius: borderRadius.md,
+    borderColor: colors.borderLight,
+    borderRadius: borderRadius.lg,
     padding: spacing.md,
-    marginBottom: spacing.lg,
+    marginBottom: spacing.xl,
+    ...shadows.sm,
   },
   textArea: {
     ...typography.body,
+    fontWeight: '500',
     color: colors.text,
     minHeight: 200,
+    lineHeight: 22,
   },
   tipCard: {
-    backgroundColor: colors.backgroundTertiary,
+    backgroundColor: colors.primaryUltraLight,
     padding: spacing.lg,
-    borderRadius: borderRadius.md,
-    borderLeftWidth: 4,
-    borderLeftColor: colors.primary,
+    borderRadius: borderRadius.lg,
+    borderWidth: 1,
+    borderColor: colors.primaryLight,
+  },
+  tipHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginBottom: spacing.sm,
   },
   tipTitle: {
     ...typography.h4,
     color: colors.text,
-    marginBottom: spacing.sm,
+    fontSize: 16,
   },
   tipText: {
     ...typography.body,
     color: colors.textSecondary,
-    lineHeight: 22,
+    lineHeight: 20,
   },
   footer: {
     paddingHorizontal: spacing.xl,
     paddingVertical: spacing.lg,
-    borderTopWidth: 1,
-    borderTopColor: colors.borderLight,
+    backgroundColor: colors.background,
   },
   analyzeButton: {
     width: '100%',
+    ...shadows.md,
   },
 });

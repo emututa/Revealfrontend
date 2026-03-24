@@ -9,11 +9,11 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
-import { X } from "lucide-react-native";
+import { X, Plus, Activity } from "lucide-react-native";
 
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
-import { colors, spacing, typography, borderRadius } from "@/constants/design";
+import { colors, spacing, typography, borderRadius, shadows } from "@/constants/design";
 import { useUserStore } from "@/lib/stores/userStore";
 import { healthAPI } from "@/lib/api/health";
 
@@ -24,18 +24,12 @@ export default function OnboardingStep1() {
   const [conditions, setConditions] = useState<string[]>([]);
   const [inputValue, setInputValue] = useState("");
 
-  // Authentication guard
   useEffect(() => {
     if (!isAuthenticated || !user) {
       Alert.alert(
-        "Authentication Required",
-        "Please log in to continue with onboarding.",
-        [
-          {
-            text: "OK",
-            onPress: () => router.replace("/(auth)/login"),
-          },
-        ]
+        "Session Expired",
+        "Please log in to continue building your profile.",
+        [{ text: "Log In", onPress: () => router.replace("/(auth)/login") }]
       );
     }
   }, [isAuthenticated, user]);
@@ -43,6 +37,11 @@ export default function OnboardingStep1() {
   const addCondition = () => {
     const value = inputValue.trim();
     if (!value) return;
+
+    if (conditions.includes(value)) {
+      Alert.alert("Already Added", "This condition is already in your list.");
+      return;
+    }
 
     setConditions((prev) => [...prev, value]);
     setInputValue("");
@@ -54,97 +53,95 @@ export default function OnboardingStep1() {
 
   const handleNext = async () => {
     if (conditions.length === 0) {
-      Alert.alert("Required", "Please add at least one health condition.");
+      Alert.alert("Action Required", "Please add at least one condition or 'None' to proceed.");
       return;
     }
 
     try {
       await healthAPI.updateConditions(conditions);
-
       router.push({
         pathname: "/(onboarding)/step2",
-        params: {
-          conditions: JSON.stringify(conditions),
-        },
+        params: { conditions: JSON.stringify(conditions) },
       });
     } catch (error: any) {
-      console.error("Health conditions save failed:", error?.response?.data || error);
-      Alert.alert(
-        "Save Failed",
-        "We could not save your health conditions. Please try again."
-      );
+      console.error("Save failed:", error);
+      Alert.alert("Error", "We couldn't save your profile. Please try again.");
     }
   };
 
-  if (!isAuthenticated || !user) {
-    return null;
-  }
+  if (!isAuthenticated || !user) return null;
 
   return (
-    <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        <View style={styles.header}>
-          <View style={styles.progressBar}>
-            <View style={[styles.progressFill, { width: "33%" }]} />
-          </View>
-          <Text style={styles.stepText}>Step 1 of 3</Text>
+    <SafeAreaView style={styles.container} edges={['top']}>
+      <View style={styles.header}>
+        <View style={styles.progressContainer}>
+          <View style={[styles.progressFill, { width: "33%" }]} />
         </View>
+        <Text style={styles.stepText}>STEP 1 OF 3</Text>
+      </View>
 
+      <ScrollView 
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      >
         <View style={styles.content}>
-          <Text style={styles.title}>Health Conditions</Text>
+          <View style={styles.titleRow}>
+            <Activity size={28} color={colors.primary} />
+            <Text style={styles.title}>Health Conditions</Text>
+          </View>
           <Text style={styles.subtitle}>
-            Do you have any health conditions we should be aware of?
-            (e.g. diabetes, celiac disease)
+            Are there any specific medical conditions or dietary requirements we should watch out for?
           </Text>
 
-          <View style={styles.inputContainer}>
+          <View style={styles.inputWrapper}>
             <Input
               value={inputValue}
               onChangeText={setInputValue}
-              placeholder="Enter a health condition"
+              placeholder="e.g. Type 1 Diabetes, Celiac"
               onSubmitEditing={addCondition}
-              multiline
-              style={styles.textArea}
+              returnKeyType="done"
             />
-            <Button
-              onPress={addCondition}
-              variant="outline"
-              style={styles.addButton}
+            <TouchableOpacity 
+              onPress={addCondition} 
+              style={[styles.addIconButton, !inputValue.trim() && styles.addIconButtonDisabled]}
+              disabled={!inputValue.trim()}
             >
-              Add
-            </Button>
+              <Plus size={24} color={colors.background} />
+            </TouchableOpacity>
           </View>
 
           <View style={styles.tagsContainer}>
             {conditions.map((condition, index) => (
               <View key={index} style={styles.tag}>
                 <Text style={styles.tagText}>{condition}</Text>
-                <TouchableOpacity onPress={() => removeCondition(index)}>
-                  <X size={16} color={colors.text} />
+                <TouchableOpacity onPress={() => removeCondition(index)} style={styles.tagClose}>
+                  <X size={14} color={colors.primaryDark} strokeWidth={3} />
                 </TouchableOpacity>
               </View>
             ))}
           </View>
 
           {conditions.length === 0 && (
-            <Text style={styles.emptyText}>No conditions added yet</Text>
+            <View style={styles.emptyState}>
+              <Text style={styles.emptyText}>Add important conditions above</Text>
+            </View>
           )}
         </View>
-
-        <View style={styles.footer}>
-          <Button
-            onPress={() => router.back()}
-            variant="ghost"
-            size="medium"
-            style={styles.backButton}
-          >
-            Back
-          </Button>
-          <Button onPress={handleNext} size="medium" style={styles.nextButton}>
-            Next
-          </Button>
-        </View>
       </ScrollView>
+
+      <View style={styles.footer}>
+        <Button
+          onPress={() => router.back()}
+          variant="subtle"
+          style={styles.backButton}
+        >
+          Previous
+        </Button>
+        <Button onPress={handleNext} style={styles.nextButton}>
+          Continue
+        </Button>
+      </View>
     </SafeAreaView>
   );
 }
@@ -154,56 +151,69 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
-  scrollContent: {
-    flexGrow: 1,
-    paddingHorizontal: spacing.xl,
-    paddingVertical: spacing.lg,
-  },
   header: {
-    marginBottom: spacing.xl,
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.lg,
   },
-  progressBar: {
-    height: 4,
+  progressContainer: {
+    height: 6,
     backgroundColor: colors.borderLight,
-    borderRadius: borderRadius.sm,
+    borderRadius: 3,
     marginBottom: spacing.sm,
+    overflow: 'hidden',
   },
   progressFill: {
     height: "100%",
     backgroundColor: colors.primary,
-    borderRadius: borderRadius.sm,
   },
   stepText: {
-    ...typography.caption,
-    color: colors.textSecondary,
+    ...typography.small,
+    color: colors.textLight,
+    fontWeight: '800',
+    letterSpacing: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
+    paddingHorizontal: spacing.xl,
   },
   content: {
     flex: 1,
   },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginBottom: spacing.xs,
+  },
   title: {
     ...typography.h2,
     color: colors.text,
-    marginBottom: spacing.sm,
   },
   subtitle: {
     ...typography.body,
     color: colors.textSecondary,
     marginBottom: spacing.xl,
-    lineHeight: 24,
+    lineHeight: 22,
   },
-  inputContainer: {
+  inputWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: spacing.sm,
-    marginBottom: spacing.lg,
+    marginBottom: spacing.xl,
   },
-  textArea: {
-    minHeight: 30,
-    maxHeight: 150,
-    textAlignVertical: "top",
-    paddingTop: spacing.md,
+  addIconButton: {
+    width: 50,
+    height: 50,
+    borderRadius: borderRadius.md,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...shadows.sm,
   },
-  addButton: {
-    marginBottom: spacing.md,
-    paddingHorizontal: spacing.lg,
+  addIconButtonDisabled: {
+    backgroundColor: colors.textLight,
+    opacity: 0.5,
   },
   tagsContainer: {
     flexDirection: "row",
@@ -213,242 +223,49 @@ const styles = StyleSheet.create({
   tag: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: colors.backgroundTertiary,
-    paddingVertical: spacing.sm,
+    backgroundColor: colors.primaryUltraLight,
+    paddingVertical: spacing.xs,
     paddingHorizontal: spacing.md,
-    borderRadius: borderRadius.md,
-    gap: spacing.sm,
+    borderRadius: borderRadius.full,
     borderWidth: 1,
-    borderColor: colors.primary,
+    borderColor: colors.primaryLight,
   },
   tagText: {
     ...typography.body,
-    color: colors.text,
+    color: colors.primaryDark,
+    fontWeight: '700',
+    fontSize: 13,
+  },
+  tagClose: {
+    marginLeft: spacing.xs,
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: 'rgba(255,255,255,0.5)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptyState: {
+    marginTop: spacing.xxl,
+    alignItems: 'center',
   },
   emptyText: {
     ...typography.body,
     color: colors.textLight,
-    textAlign: "center",
-    marginTop: spacing.xl,
+    fontStyle: 'italic',
   },
   footer: {
     flexDirection: "row",
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.lg,
+    backgroundColor: colors.background,
     gap: spacing.md,
-    marginTop: spacing.xl,
   },
   backButton: {
     flex: 1,
   },
   nextButton: {
     flex: 2,
+    ...shadows.md,
   },
 });
-
-
-
-
-
-
-
-// import React, { useState } from "react";
-// import {
-//   View,
-//   Text,
-//   StyleSheet,
-//   ScrollView,
-//   TouchableOpacity,
-// } from "react-native";
-// import { SafeAreaView } from "react-native-safe-area-context";
-// import { useRouter } from "expo-router";
-// import { X } from "lucide-react-native";
-// import Button from "@/components/ui/Button";
-// import Input from "@/components/ui/Input";
-// import { colors, spacing, typography, borderRadius } from "@/constants/design";
-
-// export default function OnboardingStep1() {
-//   const router = useRouter();
-//   const [complications, setComplications] = useState<string[]>([]);
-//   const [inputValue, setInputValue] = useState("");
-
-//   const addComplication = () => {
-//     if (inputValue.trim()) {
-//       setComplications([...complications, inputValue.trim()]);
-//       setInputValue("");
-//     }
-//   };
-
-//   const removeComplication = (index: number) => {
-//     setComplications(complications.filter((_, i) => i !== index));
-//   };
-
-//   const handleNext = () => {
-//     router.push({
-//       pathname: "/(onboarding)/step2",
-//       params: { complications: JSON.stringify(complications) },
-//     });
-//   };
-
-//   return (
-//     <SafeAreaView style={styles.container}>
-//       <ScrollView contentContainerStyle={styles.scrollContent}>
-//         <View style={styles.header}>
-//           <View style={styles.progressBar}>
-//             <View style={[styles.progressFill, { width: "33%" }]} />
-//           </View>
-//           <Text style={styles.stepText}>Step 1 of 3</Text>
-//         </View>
-
-//         <View style={styles.content}>
-//           <Text style={styles.title}>Health Conditions</Text>
-//           <Text style={styles.subtitle}>
-//             Do you have any health complications we should know about? (e.g.,
-//             diabetes, celiac disease, etc.)
-//           </Text>
-
-//           <View style={styles.inputContainer}>
-//             <Input
-//               value={inputValue}
-//               onChangeText={setInputValue}
-//               placeholder="Enter a health condition and add"
-//               onSubmitEditing={addComplication}
-//               multiline
-//               style={styles.textArea}
-//             />
-//             <Button
-//               onPress={addComplication}
-//               variant="outline"
-//               style={styles.addButton}
-//             >
-//               Add
-//             </Button>
-//           </View>
-
-//           <View style={styles.tagsContainer}>
-//             {complications.map((complication, index) => (
-//               <View key={index} style={styles.tag}>
-//                 <Text style={styles.tagText}>{complication}</Text>
-//                 <TouchableOpacity onPress={() => removeComplication(index)}>
-//                   <X size={16} color={colors.text} />
-//                 </TouchableOpacity>
-//               </View>
-//             ))}
-//           </View>
-
-//           {complications.length === 0 && (
-//             <Text style={styles.emptyText}>No conditions added yet</Text>
-//           )}
-//         </View>
-
-//         <View style={styles.footer}>
-//           <Button
-//             onPress={() => router.back()}
-//             variant="ghost"
-//             size="medium"
-//             style={styles.backButton}
-//           >
-//             Back
-//           </Button>
-//           <Button onPress={handleNext} size="medium" style={styles.nextButton}>
-//             Next
-//           </Button>
-//         </View>
-//       </ScrollView>
-//     </SafeAreaView>
-//   );
-// }
-
-// const styles = StyleSheet.create({
-//   container: {
-//     flex: 1,
-//     backgroundColor: colors.background,
-//   },
-//   scrollContent: {
-//     flexGrow: 1,
-//     paddingHorizontal: spacing.xl,
-//     paddingVertical: spacing.lg,
-//   },
-//   header: {
-//     marginBottom: spacing.xl,
-//   },
-//   progressBar: {
-//     height: 4,
-//     backgroundColor: colors.borderLight,
-//     borderRadius: borderRadius.sm,
-//     marginBottom: spacing.sm,
-//   },
-//   progressFill: {
-//     height: "100%",
-//     backgroundColor: colors.primary,
-//     borderRadius: borderRadius.sm,
-//   },
-//   stepText: {
-//     ...typography.caption,
-//     color: colors.textSecondary,
-//   },
-//   content: {
-//     flex: 1,
-//   },
-//   title: {
-//     ...typography.h2,
-//     color: colors.text,
-//     marginBottom: spacing.sm,
-//   },
-//   subtitle: {
-//     ...typography.body,
-//     color: colors.textSecondary,
-//     marginBottom: spacing.xl,
-//     lineHeight: 24,
-//   },
-//   inputContainer: {
-//     flexDirection: "column",
-//     gap: spacing.sm,
-//     marginBottom: spacing.lg,
-//   },
-//   textArea: {
-//     minHeight: 30,
-//     maxHeight: 150,
-//     textAlignVertical: "top",
-//     paddingTop: spacing.md,
-//   },
-//   addButton: {
-//     marginBottom: spacing.md,
-//     paddingHorizontal: spacing.lg,
-//   },
-//   tagsContainer: {
-//     flexDirection: "row",
-//     flexWrap: "wrap",
-//     gap: spacing.sm,
-//   },
-//   tag: {
-//     flexDirection: "row",
-//     alignItems: "center",
-//     backgroundColor: colors.backgroundTertiary,
-//     paddingVertical: spacing.sm,
-//     paddingHorizontal: spacing.md,
-//     borderRadius: borderRadius.md,
-//     gap: spacing.sm,
-//     borderWidth: 1,
-//     borderColor: colors.primary,
-//   },
-//   tagText: {
-//     ...typography.body,
-//     color: colors.text,
-//   },
-//   emptyText: {
-//     ...typography.body,
-//     color: colors.textLight,
-//     textAlign: "center",
-//     marginTop: spacing.xl,
-//   },
-//   footer: {
-//     flexDirection: "row",
-//     gap: spacing.md,
-//     marginTop: spacing.xl,
-//   },
-//   backButton: {
-//     flex: 1,
-//   },
-//   nextButton: {
-//     flex: 2,
-//   },
-// });

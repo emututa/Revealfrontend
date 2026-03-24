@@ -1,5 +1,3 @@
-
-
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -32,18 +30,22 @@ export default function FoodInputScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.iconButton}>
+        <TouchableOpacity onPress={() => router.back()} style={styles.closeButton}>
           <X size={24} color={colors.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Food Safety Check</Text>
+        <Text style={styles.headerTitle}>Input Method</Text>
         <View style={styles.placeholder} />
       </View>
 
       {/* Content */}
       <View style={styles.content}>
+        <View style={styles.stepIndicator}>
+          <Text style={styles.stepText}>Step 2 of 2</Text>
+        </View>
+
         <Text style={styles.title}>Add Ingredients</Text>
         <Text style={styles.subtitle}>
           Choose how you want to provide the ingredient list for analysis
@@ -91,55 +93,67 @@ export default function FoodInputScreen() {
   );
 }
 
-/* ---------------- Styles ---------------- */
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
   },
-
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.borderLight,
   },
-  iconButton: {
-    padding: spacing.xs,
+  closeButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.backgroundSecondary,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   headerTitle: {
     ...typography.h4,
     color: colors.text,
+    fontWeight: '700',
   },
   placeholder: {
     width: 40,
   },
-
   content: {
     flex: 1,
     paddingHorizontal: spacing.xl,
-    paddingTop: spacing.xl,
+    paddingTop: spacing.lg,
   },
-
+  stepIndicator: {
+    backgroundColor: colors.primaryUltraLight,
+    alignSelf: 'flex-start',
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xxs,
+    borderRadius: borderRadius.sm,
+    marginBottom: spacing.lg,
+    borderWidth: 1,
+    borderColor: colors.primaryLight,
+  },
+  stepText: {
+    ...typography.small,
+    color: colors.primaryDark,
+    fontSize: 10,
+  },
   title: {
     ...typography.h2,
     color: colors.text,
-    marginBottom: spacing.sm,
+    marginBottom: spacing.xs,
   },
   subtitle: {
     ...typography.body,
     color: colors.textSecondary,
     marginBottom: spacing.xl,
   },
-
   cards: {
     gap: spacing.lg,
   },
-
   card: {
     backgroundColor: colors.backgroundSecondary,
     padding: spacing.xl,
@@ -149,57 +163,54 @@ const styles = StyleSheet.create({
     borderColor: colors.borderLight,
     ...shadows.sm,
   },
-
   primaryCard: {
-    borderColor: colors.primary,
-    borderWidth: 2,
+    borderColor: colors.primaryLight,
+    backgroundColor: colors.primaryUltraLight,
+    borderWidth: 1,
     ...shadows.md,
   },
-
   iconWrapper: {
     width: 72,
     height: 72,
-    borderRadius: 36,
+    borderRadius: 24,
     backgroundColor: colors.background,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: spacing.md,
+    ...shadows.sm,
   },
-
   iconWrapperPrimary: {
     width: 80,
     height: 80,
-    borderRadius: 40,
+    borderRadius: 24,
     backgroundColor: colors.background,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: spacing.md,
+    ...shadows.sm,
   },
-
   cardTitle: {
     ...typography.h3,
     color: colors.text,
     marginBottom: spacing.sm,
   },
-
   cardText: {
     ...typography.body,
     color: colors.textSecondary,
     textAlign: 'center',
-    lineHeight: 22,
+    lineHeight: 20,
   },
-
   tipBox: {
     marginTop: spacing.xl,
     padding: spacing.md,
     borderRadius: borderRadius.md,
-    backgroundColor: colors.backgroundTertiary,
+    backgroundColor: colors.backgroundSecondary,
     borderLeftWidth: 4,
     borderLeftColor: colors.primary,
   },
-
   tipText: {
     ...typography.body,
     color: colors.textSecondary,
+    lineHeight: 20,
   },
 });

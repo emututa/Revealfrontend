@@ -1,6 +1,3 @@
-
-
-
 import React, { useState } from 'react';
 import {
   View,
@@ -21,6 +18,7 @@ import {
   spacing,
   typography,
   borderRadius,
+  shadows,
 } from '@/constants/design';
 
 export default function FoodNameScreen() {
@@ -99,7 +97,7 @@ export default function FoodNameScreen() {
           </View>
         </ScrollView>
 
-        {/* Footer - now part of KeyboardAvoidingView flow */}
+        {/* Footer */}
         <View style={styles.footer}>
           <Button
             onPress={handleNext}
@@ -115,8 +113,6 @@ export default function FoodNameScreen() {
   );
 }
 
-/* ---------------- Styles ---------------- */
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -125,80 +121,86 @@ const styles = StyleSheet.create({
   keyboard: {
     flex: 1,
   },
-
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.borderLight,
   },
   closeButton: {
-    padding: spacing.xs,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.backgroundSecondary,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   headerTitle: {
     ...typography.h4,
     color: colors.text,
+    fontWeight: '700',
   },
   placeholder: {
     width: 40,
   },
-
   content: {
     paddingHorizontal: spacing.xl,
-    paddingTop: spacing.xl,
+    paddingTop: spacing.lg,
     paddingBottom: spacing.md,
   },
-
   stepIndicator: {
+    backgroundColor: colors.primaryUltraLight,
+    alignSelf: 'flex-start',
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xxs,
+    borderRadius: borderRadius.sm,
     marginBottom: spacing.lg,
+    borderWidth: 1,
+    borderColor: colors.primaryLight,
   },
   stepText: {
-    ...typography.caption,
-    color: colors.textSecondary,
-    fontWeight: '600',
+    ...typography.small,
+    color: colors.primaryDark,
+    fontSize: 10,
   },
-
   title: {
     ...typography.h2,
     color: colors.text,
-    marginBottom: spacing.sm,
+    marginBottom: spacing.xs,
   },
   subtitle: {
     ...typography.body,
     color: colors.textSecondary,
     marginBottom: spacing.xl,
   },
-
   examples: {
     marginTop: spacing.xl,
     padding: spacing.lg,
     backgroundColor: colors.backgroundSecondary,
-    borderRadius: borderRadius.md,
+    borderRadius: borderRadius.lg,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
   },
   examplesTitle: {
     ...typography.body,
-    fontWeight: '600',
+    fontWeight: '700',
     color: colors.text,
     marginBottom: spacing.sm,
   },
   exampleItem: {
     ...typography.body,
     color: colors.primary,
+    fontWeight: '600',
     marginVertical: spacing.xs,
   },
-
   footer: {
     paddingHorizontal: spacing.xl,
     paddingVertical: spacing.lg,
     backgroundColor: colors.background,
-    borderTopWidth: 1,
-    borderTopColor: colors.borderLight,
   },
-
   nextButton: {
     width: '100%',
+    ...shadows.md,
   },
 });

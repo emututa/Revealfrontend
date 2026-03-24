@@ -13,41 +13,51 @@ export default function WelcomeScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <LinearGradient
-        colors={[colors.backgroundSecondary, colors.background]}
+        colors={[colors.primaryUltraLight, colors.background, colors.background]}
         style={styles.gradient}
       >
         <View style={styles.content}>
-          <View style={styles.logoContainer}>
-            <View style={styles.logoCircle}>
-              <Text style={styles.logoText}>R</Text>
+          <View style={styles.topSection}>
+            <View style={styles.logoContainer}>
+              <View style={styles.logoCircle}>
+                <Text style={styles.logoText}>R</Text>
+              </View>
+              <Text style={styles.brandName}>Reveal</Text>
+              <View style={styles.badge}>
+                <Text style={styles.badgeText}>AI FOOD SAFETY</Text>
+              </View>
             </View>
-            <Text style={styles.brandName}>Reveal</Text>
-            <Text style={styles.tagline}>AI-Powered Food Safety</Text>
           </View>
 
-          <View style={styles.featuresContainer}>
-            <Image
-              source={require('@/assets/images/lpage.png')}
-              style={styles.featureImage}
-              resizeMode="contain"
-            />
+          <View style={styles.middleSection}>
+            <Text style={styles.mainTitle}>Eat with Confidence,{"\n"}Every Single Bite.</Text>
+            <Text style={styles.description}>
+              Instantly identify allergens, additives, and nutritional risks with our advanced AI scanning technology.
+            </Text>
+            <View style={styles.imageWrapper}>
+              <Image
+                source={require('@/assets/images/lpage.png')}
+                style={styles.featureImage}
+                resizeMode="contain"
+              />
+            </View>
           </View>
 
           <View style={styles.buttonContainer}>
             <Button
               onPress={() => router.push('/(auth)/signup')}
-              size="medium"
+              size="large"
               style={styles.primaryButton}
             >
-              Get Started
+              Start for Free
             </Button>
             <Button
               onPress={() => router.push('/(auth)/login')}
-              variant="outline"
-              size="medium"
+              variant="subtle"
+              size="large"
               style={styles.secondaryButton}
             >
-              Sign In
+              Sign In to Account
             </Button>
           </View>
         </View>
@@ -78,65 +88,78 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: spacing.xl,
     justifyContent: 'space-between',
-    paddingVertical: spacing.xxl,
+    paddingBottom: spacing.xxl,
+    paddingTop: spacing.xl,
+  },
+  topSection: {
+    alignItems: 'center',
   },
   logoContainer: {
     alignItems: 'center',
-    marginTop: spacing.xxl,
+    gap: spacing.sm,
   },
   logoCircle: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
+    width: 64,
+    height: 64,
+    borderRadius: 20,
     backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: spacing.lg,
+    ...shadows.md,
   },
   logoText: {
-    fontSize: 48,
-    fontWeight: '700',
-    color: colors.background,
+    fontSize: 32,
+    fontWeight: '800',
+    color: colors.textOnPrimary,
   },
   brandName: {
+    ...typography.h2,
+    color: colors.text,
+    fontSize: 28,
+  },
+  badge: {
+    backgroundColor: colors.primaryUltraLight,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xxs,
+    borderRadius: borderRadius.sm,
+    borderWidth: 1,
+    borderColor: colors.primaryLight,
+  },
+  badgeText: {
+    ...typography.small,
+    color: colors.primaryDark,
+    fontSize: 10,
+  },
+  middleSection: {
+    alignItems: 'center',
+    paddingHorizontal: spacing.sm,
+  },
+  mainTitle: {
     ...typography.h1,
     color: colors.text,
-    marginBottom: spacing.xs,
+    textAlign: 'center',
+    marginBottom: spacing.md,
   },
-  tagline: {
-    ...typography.body,
+  description: {
+    ...typography.bodyLarge,
     color: colors.textSecondary,
+    textAlign: 'center',
+    lineHeight: 24,
+    marginBottom: spacing.xl,
   },
-  featuresContainer: {
+  imageWrapper: {
+    width: '100%',
+    height: 240,
+    backgroundColor: colors.backgroundSecondary,
+    borderRadius: borderRadius.xl,
+    padding: spacing.lg,
     alignItems: 'center',
     justifyContent: 'center',
+    ...shadows.sm,
   },
   featureImage: {
     width: '100%',
-    height: 200,
-    borderRadius: borderRadius.lg,
-  },
-  featureCard: {
-    backgroundColor: colors.background,
-    padding: spacing.lg,
-    borderRadius: borderRadius.lg,
-    borderWidth: 1,
-    borderColor: colors.borderLight,
-    alignItems: 'center',
-  },
-  featureIcon: {
-    fontSize: 32,
-    marginBottom: spacing.sm,
-  },
-  featureTitle: {
-    ...typography.h4,
-    color: colors.text,
-    marginBottom: spacing.xs,
-  },
-  featureDescription: {
-    ...typography.caption,
-    color: colors.textSecondary,
-    textAlign: 'center',
+    height: '100%',
   },
   buttonContainer: {
     gap: spacing.md,
@@ -148,3 +171,4 @@ const styles = StyleSheet.create({
     width: '100%',
   },
 });
+

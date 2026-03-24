@@ -1,12 +1,9 @@
-
-
-
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ActivityIndicator, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Sparkles } from 'lucide-react-native';
-import { colors, spacing, typography } from '@/constants/design';
+import { colors, spacing, typography, borderRadius } from '@/constants/design';
 import { scanAPI } from '@/lib/api/scan';
 
 export default function AnalyzingScreen() {
@@ -28,34 +25,23 @@ export default function AnalyzingScreen() {
       let result = null;
 
       if (params.imageUri) {
-        // Analyze with image
-        setStatus('Uploading and analyzing image...');
-        console.log('📤 Analyzing with image:', params.imageUri);
-        
+        setStatus('Scanning label image...');
         result = await scanAPI.scanWithImage({ 
           image: params.imageUri,
-           foodName: params.foodName || 'Unknown Food'
+          foodName: params.foodName || 'Unknown Food'
         });
       } else if (params.ingredients) {
-        // Analyze with text
         setStatus('Analyzing ingredients...');
-        console.log('📤 Analyzing with text:', params.ingredients);
-        
         result = await scanAPI.scanWithText({
           ingredients: params.ingredients,
           foodName: params.foodName || 'Unknown Food'
         });
       } else {
-        throw new Error('No image or ingredients provided');
+        throw new Error('No data provided for analysis');
       }
 
-      if (!result) {
-        throw new Error('Analysis failed - no result returned');
-      }
+      if (!result) throw new Error('Analysis failed');
 
-      console.log('✅ Analysis complete:', result);
-
-      // Navigate to result screen
       router.replace({
         pathname: '/(scan)/result',
         params: {
@@ -69,26 +55,17 @@ export default function AnalyzingScreen() {
         },
       });
     } catch (error: any) {
-      console.error('❌ Analysis error:', error);
-      console.error('Error details:', {
-        message: error.message,
-        response: error.response?.data,
-        status: error.response?.status
-      });
-      
-      setStatus('Analysis failed. Please try again.');
+      console.error('Analysis error:', error);
+      setStatus('Something went wrong');
       
       const errorMessage = error?.response?.data?.error 
-        || error?.response?.data?.message 
         || error.message 
         || 'Failed to analyze ingredients';
       
       Alert.alert(
         'Analysis Failed', 
         errorMessage,
-        [
-          { text: 'OK', onPress: () => router.back() }
-        ]
+        [{ text: 'Go Back', onPress: () => router.back() }]
       );
     }
   };
@@ -97,17 +74,21 @@ export default function AnalyzingScreen() {
     <SafeAreaView style={styles.container}>
       <View style={styles.content}>
         <View style={styles.iconContainer}>
-          <Sparkles size={64} color={colors.primary} strokeWidth={1.5} />
+          <Sparkles size={48} color={colors.primary} strokeWidth={2} />
         </View>
 
-        <Text style={styles.title}>Analyzing Ingredients</Text>
+        <Text style={styles.title}>Analyzing Your Food</Text>
         <Text style={styles.status}>{status}</Text>
 
-        <ActivityIndicator size="large" color={colors.primary} style={styles.loader} />
+        <View style={styles.loaderContainer}>
+          <ActivityIndicator size="large" color={colors.primary} />
+        </View>
 
-        <Text style={styles.subtitle}>
-          We're checking the ingredients against your health profile to ensure your safety
-        </Text>
+        <View style={styles.infoCard}>
+          <Text style={styles.subtitle}>
+            We're cross-referencing ingredients with your health profile to ensure everything is safe for you.
+          </Text>
+        </View>
       </View>
     </SafeAreaView>
   );
@@ -125,10 +106,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   iconContainer: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    backgroundColor: colors.backgroundSecondary,
+    width: 100,
+    height: 100,
+    borderRadius: 30,
+    backgroundColor: colors.primaryUltraLight,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: spacing.xl,
@@ -137,22 +118,29 @@ const styles = StyleSheet.create({
     ...typography.h2,
     color: colors.text,
     textAlign: 'center',
-    marginBottom: spacing.sm,
+    marginBottom: spacing.xs,
   },
   status: {
-    ...typography.body,
-    color: colors.primary,
-    fontWeight: '600',
-    marginBottom: spacing.lg,
+    ...typography.bodyLarge,
+    color: colors.primaryDark,
+    fontWeight: '700',
+    marginBottom: spacing.xxl,
   },
-  loader: {
-    marginVertical: spacing.xl,
+  loaderContainer: {
+    height: 60,
+    justifyContent: 'center',
+  },
+  infoCard: {
+    marginTop: spacing.xxxl,
+    padding: spacing.lg,
+    backgroundColor: colors.backgroundSecondary,
+    borderRadius: borderRadius.lg,
+    width: '100%',
   },
   subtitle: {
     ...typography.body,
     color: colors.textSecondary,
     textAlign: 'center',
-    lineHeight: 24,
-    paddingHorizontal: spacing.lg,
+    lineHeight: 22,
   },
 });

@@ -1,26 +1,30 @@
-
-
-
-
-
-
 import React, { useState, useRef, useEffect } from 'react';
-import { View, Text, TouchableOpacity, Alert, ActivityIndicator, StyleSheet } from 'react-native';
+import { 
+  View, 
+  Text, 
+  TouchableOpacity, 
+  Alert, 
+  ActivityIndicator, 
+  StyleSheet,
+  Dimensions 
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { CameraView, CameraType, useCameraPermissions } from 'expo-camera'; // UPDATED IMPORTS
-import { X, Zap } from 'lucide-react-native';
+import { CameraView, useCameraPermissions } from 'expo-camera';
+import { X, Zap, Info } from 'lucide-react-native';
 import Button from '@/components/ui/Button';
 import { scanAPI } from '@/lib/api/scan';
-import { colors, spacing, typography, borderRadius } from '@/constants/design';
+import { colors, spacing, typography, borderRadius, shadows } from '@/constants/design';
+
+const { width, height } = Dimensions.get('window');
 
 export default function CameraScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ foodName?: string }>();
-  const [permission, requestPermission] = useCameraPermissions(); // FIXED
+  const [permission, requestPermission] = useCameraPermissions();
   const [capturing, setCapturing] = useState(false);
   const [uploading, setUploading] = useState(false);
-  const cameraRef = useRef<CameraView>(null); // FIXED TYPE
+  const cameraRef = useRef<CameraView>(null);
 
   useEffect(() => {
     if (!permission?.granted) requestPermission();
@@ -28,17 +32,26 @@ export default function CameraScreen() {
 
   if (!permission) return (
     <SafeAreaView style={styles.loadingContainer}>
-      <Text style={styles.loadingText}>Loading camera...</Text>
+      <ActivityIndicator size="large" color={colors.primary} />
+      <Text style={styles.loadingText}>Initializing camera...</Text>
     </SafeAreaView>
   );
 
   if (!permission.granted) return (
     <SafeAreaView style={styles.permissionContainer}>
-      <Text style={styles.permissionTitle}>Camera Permission Required</Text>
+      <View style={styles.permissionIconContainer}>
+        <Info size={48} color={colors.primary} />
+      </View>
+      <Text style={styles.permissionTitle}>Camera Access Needed</Text>
       <Text style={styles.permissionText}>
-        We need access to your camera to scan ingredient labels
+        We need access to your camera to scan and analyze food labels for you.
       </Text>
-      <Button onPress={requestPermission} size="large">Grant Permission</Button>
+      <Button onPress={requestPermission} size="large" style={styles.permissionButton}>
+        Grant Camera Access
+      </Button>
+      <TouchableOpacity onPress={() => router.back()}>
+        <Text style={styles.cancelText}>Not Now</Text>
+      </TouchableOpacity>
     </SafeAreaView>
   );
 
@@ -56,7 +69,7 @@ export default function CameraScreen() {
         }
       } catch (error) {
         console.error('Capture error:', error);
-        Alert.alert('Error', 'Failed to capture image');
+        Alert.alert('Capture Failed', 'Something went wrong while taking the photo.');
       } finally {
         setCapturing(false);
       }
@@ -71,7 +84,6 @@ export default function CameraScreen() {
         foodName: params.foodName || 'Unknown Food' 
       });
       
-      // Backend returns: foodName, ingredients, isSafe, riskLevel, warnings, explanation
       router.push({
         pathname: '/(scan)/result',
         params: { 
@@ -86,7 +98,7 @@ export default function CameraScreen() {
       });
     } catch (error: any) {
       console.error('Upload error:', error);
-      Alert.alert('Error', error?.response?.data?.error || error.message || 'Failed to upload image');
+      Alert.alert('Analysis Failed', error?.response?.data?.error || error.message || 'We could not analyze that image.');
     } finally {
       setUploading(false);
     }
@@ -95,41 +107,57 @@ export default function CameraScreen() {
   return (
     <View style={styles.container}>
       <CameraView style={styles.camera} ref={cameraRef} facing="back">
-        <SafeAreaView style={styles.overlay}>
+        <SafeAreaView style={styles.overlay} edges={['top', 'bottom']}>
           <View style={styles.topBar}>
             <TouchableOpacity onPress={() => router.back()} style={styles.closeButton}>
               <X size={24} color={colors.background} />
             </TouchableOpacity>
+            <View style={styles.foodBadge}>
+              <Text style={styles.foodBadgeText} numberOfLines={1}>
+                Scanning: {params.foodName || 'Food'}
+              </Text>
+            </View>
+            <View style={styles.placeholder} />
           </View>
 
-          <View style={styles.scanFrame}>
-            <View style={[styles.corner, styles.topLeft]} />
-            <View style={[styles.corner, styles.topRight]} />
-            <View style={[styles.corner, styles.bottomLeft]} />
-            <View style={[styles.corner, styles.bottomRight]} />
-            <View style={styles.scanLine} />
+          <View style={styles.scanFrameContainer}>
+            <View style={styles.scanFrame}>
+              <View style={[styles.corner, styles.topLeft]} />
+              <View style={[styles.corner, styles.topRight]} />
+              <View style={[styles.corner, styles.bottomLeft]} />
+              <View style={[styles.corner, styles.bottomRight]} />
+            </View>
           </View>
 
-          <View style={styles.instructions}>
-            <Zap size={20} color={colors.primary} />
-            <Text style={styles.instructionText}>
-              Position the ingredient list within the frame
-            </Text>
+          <View style={styles.bottomSection}>
+            <View style={styles.instructions}>
+              <Zap size={18} color={colors.primary} />
+              <Text style={styles.instructionText}>
+                Align ingredient list inside the frame
+              </Text>
+            </View>
+
+            <View style={styles.captureContainer}>
+              <TouchableOpacity
+                style={[styles.captureButton, (capturing || uploading) && styles.captureDisabled]}
+                onPress={takePicture}
+                disabled={capturing || uploading}
+              >
+                {uploading ? (
+                  <ActivityIndicator size="small" color={colors.primary} />
+                ) : (
+                  <View style={styles.captureInner} />
+                )}
+              </TouchableOpacity>
+            </View>
           </View>
 
-          <View style={styles.bottomBar}>
-            <TouchableOpacity
-              style={[styles.captureButton, (capturing || uploading) && styles.captureDisabled]}
-              onPress={takePicture}
-              disabled={capturing || uploading}
-            >
-              {uploading ? (
-                <ActivityIndicator size="small" color={colors.primary} />
-              ) : (
-                <View style={styles.captureInner} />
-              )}
-            </TouchableOpacity>
-          </View>
+          {uploading && (
+            <View style={styles.uploadOverlay}>
+              <ActivityIndicator size="large" color={colors.primary} />
+              <Text style={styles.uploadText}>Analyzing Ingredients...</Text>
+            </View>
+          )}
         </SafeAreaView>
       </CameraView>
     </View>
@@ -137,26 +165,68 @@ export default function CameraScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.text },
-  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  loadingText: { ...typography.body, color: colors.textSecondary },
+  container: { flex: 1, backgroundColor: '#000' },
+  loadingContainer: { 
+    flex: 1, 
+    justifyContent: 'center', 
+    alignItems: 'center',
+    backgroundColor: colors.background 
+  },
+  loadingText: { 
+    ...typography.body, 
+    color: colors.textSecondary,
+    marginTop: spacing.md 
+  },
   permissionContainer: { 
     flex: 1, 
     justifyContent: 'center', 
     alignItems: 'center', 
-    padding: spacing.xl, 
-    gap: spacing.lg 
+    padding: spacing.xl,
+    backgroundColor: colors.background
   },
-  permissionTitle: { ...typography.h3, color: colors.text, textAlign: 'center' },
+  permissionIconContainer: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: colors.primaryUltraLight,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: spacing.xl,
+  },
+  permissionTitle: { 
+    ...typography.h2, 
+    color: colors.text, 
+    textAlign: 'center',
+    marginBottom: spacing.sm
+  },
   permissionText: { 
-    ...typography.body, 
+    ...typography.bodyLarge, 
     color: colors.textSecondary, 
     textAlign: 'center', 
-    marginBottom: spacing.md 
+    marginBottom: spacing.xxl,
+    lineHeight: 24
+  },
+  permissionButton: {
+    width: '100%',
+    marginBottom: spacing.lg,
+  },
+  cancelText: {
+    ...typography.body,
+    color: colors.textLight,
+    fontWeight: '600'
   },
   camera: { flex: 1 },
-  overlay: { flex: 1 },
-  topBar: { padding: spacing.lg },
+  overlay: { 
+    flex: 1,
+    justifyContent: 'space-between'
+  },
+  topBar: { 
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between'
+  },
   closeButton: { 
     width: 44, 
     height: 44, 
@@ -165,66 +235,119 @@ const styles = StyleSheet.create({
     justifyContent: 'center', 
     alignItems: 'center' 
   },
-  scanFrame: { 
-    flex: 1, 
-    justifyContent: 'center', 
-    alignItems: 'center', 
-    paddingHorizontal: spacing.xl 
+  foodBadge: {
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    borderRadius: borderRadius.full,
+    maxWidth: width * 0.5,
   },
-  corner: { position: 'absolute', width: 40, height: 40, borderColor: colors.primary },
+  foodBadgeText: {
+    ...typography.caption,
+    color: colors.background,
+    fontWeight: '700'
+  },
+  placeholder: { width: 44 },
+  scanFrameContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  scanFrame: { 
+    width: width * 0.85,
+    height: width * 0.85,
+    position: 'relative',
+  },
+  corner: { 
+    position: 'absolute', 
+    width: 30, 
+    height: 30, 
+    borderColor: colors.primary,
+    borderWidth: 4,
+  },
   topLeft: { 
-    top: '20%', 
-    left: spacing.xl, 
-    borderTopWidth: 4, 
-    borderLeftWidth: 4, 
-    borderTopLeftRadius: 8 
+    top: 0, 
+    left: 0, 
+    borderBottomWidth: 0,
+    borderRightWidth: 0,
+    borderTopLeftRadius: 16 
   },
   topRight: { 
-    top: '20%', 
-    right: spacing.xl, 
-    borderTopWidth: 4, 
-    borderRightWidth: 4, 
-    borderTopRightRadius: 8 
+    top: 0, 
+    right: 0, 
+    borderBottomWidth: 0,
+    borderLeftWidth: 0,
+    borderTopRightRadius: 16 
   },
   bottomLeft: { 
-    bottom: '20%', 
-    left: spacing.xl, 
-    borderBottomWidth: 4, 
-    borderLeftWidth: 4, 
-    borderBottomLeftRadius: 8 
+    bottom: 0, 
+    left: 0, 
+    borderTopWidth: 0,
+    borderRightWidth: 0,
+    borderBottomLeftRadius: 16 
   },
   bottomRight: { 
-    bottom: '20%', 
-    right: spacing.xl, 
-    borderBottomWidth: 4, 
-    borderRightWidth: 4, 
-    borderBottomRightRadius: 8 
+    bottom: 0, 
+    right: 0, 
+    borderTopWidth: 0,
+    borderLeftWidth: 0,
+    borderBottomRightRadius: 16 
   },
-  scanLine: { width: '80%', height: 2, backgroundColor: colors.primary, opacity: 0.8 },
+  bottomSection: {
+    paddingBottom: spacing.xxl,
+    alignItems: 'center',
+    gap: spacing.xl
+  },
   instructions: { 
     flexDirection: 'row', 
     alignItems: 'center', 
-    justifyContent: 'center', 
     gap: spacing.sm, 
     backgroundColor: 'rgba(0,0,0,0.7)', 
-    paddingVertical: spacing.md, 
+    paddingVertical: spacing.sm, 
     paddingHorizontal: spacing.lg, 
-    marginHorizontal: spacing.xl, 
-    borderRadius: borderRadius.md, 
-    marginBottom: spacing.xl 
+    borderRadius: borderRadius.full,
   },
-  instructionText: { ...typography.body, color: colors.background },
-  bottomBar: { paddingBottom: spacing.xl, alignItems: 'center' },
+  instructionText: { 
+    ...typography.caption, 
+    color: colors.background,
+    fontWeight: '600'
+  },
+  captureContainer: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   captureButton: { 
-    width: 70, 
-    height: 70, 
-    borderRadius: 35, 
+    width: 64, 
+    height: 64, 
+    borderRadius: 32, 
     backgroundColor: colors.background, 
     justifyContent: 'center', 
     alignItems: 'center', 
-    borderWidth: 4, 
-    borderColor: colors.primary 
   },
   captureDisabled: { opacity: 0.5 },
-  captureInner: { width: 54, height: 54, borderRadius: 27, backgroundColor: colors.primary },
+  captureInner: { 
+    width: 52, 
+    height: 52, 
+    borderRadius: 26, 
+    borderWidth: 2,
+    borderColor: colors.primaryUltraLight,
+    backgroundColor: colors.primary 
+  },
+  uploadOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.8)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: spacing.lg,
+    zIndex: 10
+  },
+  uploadText: {
+    ...typography.h3,
+    color: colors.background,
+    fontWeight: '700'
+  }
 });

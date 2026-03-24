@@ -36,29 +36,31 @@ export default function Input({
 
 const styles = StyleSheet.create({
   container: {
-    marginBottom: spacing.md,
+    marginBottom: spacing.lg,
   },
   label: {
-    ...typography.body,
-    fontWeight: '600',
-    color: colors.text,
-    marginBottom: spacing.sm,
+    ...typography.caption,
+    color: colors.textSecondary,
+    marginBottom: spacing.xs,
+    marginLeft: spacing.xxs,
   },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.background,
+    backgroundColor: colors.backgroundSecondary,
     borderWidth: 1.5,
-    borderColor: colors.border,
+    borderColor: colors.borderLight,
     borderRadius: borderRadius.md,
     paddingHorizontal: spacing.md,
   },
   inputError: {
     borderColor: colors.error,
+    backgroundColor: '#FFF1F2',
   },
   input: {
     flex: 1,
     ...typography.body,
+    fontWeight: '500',
     color: colors.text,
     paddingVertical: spacing.md,
   },
@@ -72,5 +74,7 @@ const styles = StyleSheet.create({
     ...typography.caption,
     color: colors.error,
     marginTop: spacing.xs,
+    marginLeft: spacing.xxs,
   },
 });
+

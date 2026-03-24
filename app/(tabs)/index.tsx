@@ -126,7 +126,8 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingHorizontal: spacing.xl,
-    paddingVertical: spacing.lg,
+    paddingTop: spacing.xl,
+    paddingBottom: spacing.xxl,
     gap: spacing.xl,
   },
   header: {
@@ -135,32 +136,34 @@ const styles = StyleSheet.create({
   greeting: {
     ...typography.h2,
     color: colors.text,
-    marginBottom: spacing.xs,
+    fontSize: 28,
   },
   subtitle: {
-    ...typography.body,
+    ...typography.bodyLarge,
     color: colors.textSecondary,
+    marginTop: spacing.xxs,
   },
   scanCard: {
-    backgroundColor: colors.backgroundSecondary,
+    backgroundColor: colors.primaryUltraLight,
     padding: spacing.xl,
     borderRadius: borderRadius.xl,
     alignItems: 'center',
-    borderWidth: 2,
-    borderColor: colors.primary,
+    borderWidth: 1,
+    borderColor: colors.primaryLight,
     ...shadows.md,
   },
   scanIconContainer: {
     width: 80,
     height: 80,
-    borderRadius: 40,
+    borderRadius: 24,
     backgroundColor: colors.background,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: spacing.md,
+    ...shadows.sm,
   },
   scanTitle: {
-    ...typography.h4,
+    ...typography.h3,
     color: colors.text,
     marginBottom: spacing.xs,
   },
@@ -168,13 +171,15 @@ const styles = StyleSheet.create({
     ...typography.body,
     color: colors.textSecondary,
     textAlign: 'center',
+    lineHeight: 20,
   },
   infoCard: {
-    backgroundColor: colors.backgroundTertiary,
+    backgroundColor: colors.backgroundSecondary,
     padding: spacing.lg,
     borderRadius: borderRadius.lg,
     borderLeftWidth: 4,
     borderLeftColor: colors.primary,
+    ...shadows.sm,
   },
   infoTitle: {
     ...typography.h4,
@@ -187,3 +192,4 @@ const styles = StyleSheet.create({
     lineHeight: 22,
   },
 });
+

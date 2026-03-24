@@ -1,40 +1,43 @@
-// Design tokens for Reveal - Medical-tech aesthetic with lime green
+// Modern Design Tokens for Reveal - Premium Emerald & Slate Aesthetic
 export const colors = {
-  // Primary brand colors
-  primary: '#84CC16', // Lime green
-  primaryDark: '#65A30D', // Darker lime
-  primaryLight: '#BEF264', // Light lime
+  // Primary brand colors (Emerald)
+  primary: '#10B981', 
+  primaryDark: '#059669',
+  primaryLight: '#34D399',
+  primaryUltraLight: '#ECFDF5',
   
-  // Secondary greens
-  secondary: '#22C55E', // Green
-  secondaryDark: '#16A34A',
+  // Secondary / Accent (Indigo / Slate)
+  secondary: '#6366F1', 
+  secondaryDark: '#4F46E5',
   
-  // Backgrounds
+  // Neutral / Backgrounds
   background: '#FFFFFF',
-  backgroundSecondary: '#F8FDF4', // Very light lime tint
-  backgroundTertiary: '#F0FDF4', // Light green tint
+  backgroundSecondary: '#F8FAFC', // Slate 50
+  backgroundTertiary: '#F1F5F9', // Slate 100
   
   // Text
-  text: '#0F172A', // Dark slate
-  textSecondary: '#64748B', // Medium slate
-  textLight: '#94A3B8', // Light slate
+  text: '#0F172A', // Slate 900
+  textSecondary: '#475569', // Slate 600
+  textLight: '#94A3B8', // Slate 400
+  textOnPrimary: '#FFFFFF',
   
   // Status colors
-  success: '#22C55E',
-  warning: '#F97316', // Orange for warnings
-  error: '#EF4444',
-  info: '#3B82F6',
+  success: '#10B981',
+  warning: '#F59E0B', // Amber 500
+  error: '#EF4444', // Red 500
+  info: '#3B82F6', // Blue 500
   
   // UI elements
-  border: '#E2E8F0',
-  borderLight: '#F1F5F9',
-  shadow: '#00000010',
+  border: '#E2E8F0', // Slate 200
+  borderLight: '#F1F5F9', // Slate 100
+  shadow: '#00000008',
   
   // Overlay
-  overlay: 'rgba(0, 0, 0, 0.5)',
+  overlay: 'rgba(0, 0, 0, 0.4)',
 };
 
 export const spacing = {
+  xxs: 2,
   xs: 4,
   sm: 8,
   md: 16,
@@ -45,45 +48,47 @@ export const spacing = {
 };
 
 export const typography = {
-  h1: { fontSize: 32, fontWeight: '700' as const, lineHeight: 40 },
-  h2: { fontSize: 28, fontWeight: '700' as const, lineHeight: 36 },
-  h3: { fontSize: 24, fontWeight: '600' as const, lineHeight: 32 },
-  h4: { fontSize: 20, fontWeight: '600' as const, lineHeight: 28 },
-  body: { fontSize: 16, fontWeight: '400' as const, lineHeight: 24 },
-  bodyLarge: { fontSize: 18, fontWeight: '400' as const, lineHeight: 28 },
-  caption: { fontSize: 14, fontWeight: '400' as const, lineHeight: 20 },
-  small: { fontSize: 12, fontWeight: '400' as const, lineHeight: 16 },
+  h1: { fontSize: 34, fontWeight: '800' as const, lineHeight: 42, letterSpacing: -0.5 },
+  h2: { fontSize: 28, fontWeight: '700' as const, lineHeight: 36, letterSpacing: -0.4 },
+  h3: { fontSize: 22, fontWeight: '700' as const, lineHeight: 30, letterSpacing: -0.3 },
+  h4: { fontSize: 18, fontWeight: '600' as const, lineHeight: 26 },
+  bodyLarge: { fontSize: 17, fontWeight: '400' as const, lineHeight: 26 },
+  body: { fontSize: 15, fontWeight: '400' as const, lineHeight: 22 },
+  caption: { fontSize: 13, fontWeight: '500' as const, lineHeight: 18 },
+  small: { fontSize: 11, fontWeight: '600' as const, lineHeight: 16, textTransform: 'uppercase' as const },
 };
 
 export const shadows = {
   sm: {
-    shadowColor: colors.shadow,
+    shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 2,
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
   },
   md: {
-    shadowColor: colors.shadow,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 3,
   },
   lg: {
-    shadowColor: colors.shadow,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 16,
-    elevation: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.12,
+    shadowRadius: 20,
+    elevation: 6,
   },
 };
 
 export const borderRadius = {
+  xs: 4,
   sm: 8,
   md: 12,
-  lg: 16,
-  xl: 20,
-  xxl: 24,
+  lg: 20,
+  xl: 30,
+  xxl: 40,
   full: 9999,
 };
+

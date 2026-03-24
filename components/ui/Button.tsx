@@ -18,7 +18,7 @@ import {
 interface ButtonProps {
   onPress: () => void;
   children: React.ReactNode;
-  variant?: "primary" | "secondary" | "outline" | "ghost";
+  variant?: "primary" | "secondary" | "outline" | "ghost" | "subtle";
   size?: "small" | "medium" | "large" | "onboarding";
   disabled?: boolean;
   loading?: boolean;
@@ -67,11 +67,14 @@ export default function Button({
       },
       outline: {
         backgroundColor: "transparent",
-        borderWidth: 2,
+        borderWidth: 1.5,
         borderColor: colors.primary,
       },
       ghost: {
         backgroundColor: "transparent",
+      },
+      subtle: {
+        backgroundColor: colors.primaryUltraLight,
       },
     };
 
@@ -92,10 +95,11 @@ export default function Button({
     };
 
     const variantStyles: Record<string, TextStyle> = {
-      primary: { color: "#FFFFFF" },
-      secondary: { color: "#FFFFFF" },
+      primary: { color: colors.textOnPrimary },
+      secondary: { color: colors.textOnPrimary },
       outline: { color: colors.primary },
       ghost: { color: colors.primary },
+      subtle: { color: colors.primaryDark },
     };
 
     return {
